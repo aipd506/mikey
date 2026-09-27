@@ -1,5 +1,6 @@
 package com.mikey.service
 
+import com.mikey.media.OpusEncoder
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.util.concurrent.ArrayBlockingQueue
@@ -31,6 +32,19 @@ class SessionControllerTest {
         assertEquals(AudioCodec.OPUS, audioCodecFor(level = 4, losslessWifi = false, pcHasOpus = true))
         assertEquals(AudioCodec.PCM, audioCodecFor(level = 4, losslessWifi = true, pcHasOpus = true))
         assertEquals(AudioCodec.PCM, audioCodecFor(level = 4, losslessWifi = false, pcHasOpus = false))
+    }
+
+    @Test
+    fun bluetoothGetsSpeechModeAt48kbpsIn20msFramesWifiLowDelay96() {
+        val bluetooth = opusProfileFor(3)
+        assertEquals(OpusEncoder.Application.VOIP, bluetooth.application)
+        assertEquals(48_000, bluetooth.bitrate)
+        assertEquals(2, bluetooth.framesPerPacket)
+
+        val wifi = opusProfileFor(4)
+        assertEquals(OpusEncoder.Application.LOW_DELAY, wifi.application)
+        assertEquals(96_000, wifi.bitrate)
+        assertEquals(1, wifi.framesPerPacket)
     }
 
     @Test

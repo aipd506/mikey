@@ -33,10 +33,16 @@ class Settings(context: Context) {
         get() = prefs.getString(KEY_PC_LAST_IP, null)
         set(value) = prefs.edit().putString(KEY_PC_LAST_IP, value).apply()
 
+    /** The Bluetooth address of the bonded computer that answered before, so only it is tried from then on. */
+    var pcBtAddress: String?
+        get() = prefs.getString(KEY_PC_BT_ADDRESS, null)
+        set(value) = prefs.edit().putString(KEY_PC_BT_ADDRESS, value).apply()
+
     /** After this the next connection counts as new, so Wi-Fi asks for approval again. */
     fun forgetPc() {
         pairedPc = null
         lastPcAddress = null
+        pcBtAddress = null
     }
 
     /** Connection levels the user allows: 1 USB debugging, 2 USB tethering, 3 Bluetooth, 4 Wi-Fi. All by default. */
@@ -59,6 +65,7 @@ class Settings(context: Context) {
         const val KEY_PC_NAME = "pc.lastName"
         const val KEY_PC_TOKEN = "pc.token"
         const val KEY_PC_LAST_IP = "pc.lastIp"
+        const val KEY_PC_BT_ADDRESS = "pc.btAddress"
         const val KEY_WIFI_LOSSLESS = "audio.wifiLossless"
         const val KEY_LEVELS = "levels.enabled"
         const val KEY_MANUAL_PC_ADDRESS = "pc.manualAddress"
