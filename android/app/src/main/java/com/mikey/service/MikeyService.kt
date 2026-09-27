@@ -35,7 +35,11 @@ class MikeyService : Service() {
             startForeground(Notifier.ID, notification)
         }
         if (session == null) {
-            session = SessionController(this) { link -> mainThread.post { onLink(link) } }.also { it.start() }
+            session = SessionController(
+                this,
+                onLink = { link -> mainThread.post { onLink(link) } },
+                onCableHint = { on -> mainThread.post { onCableHint(on) } },
+            ).also { it.start() }
         }
         mutableState.value = mutableState.value.copy(micOn = true)
         // Not sticky: if Android kills the app, the mic must stay off until the user turns it on again.
@@ -47,6 +51,11 @@ class MikeyService : Service() {
         if (session == null || link == mutableState.value.link) return
         mutableState.value = mutableState.value.copy(link = link)
         notifier.show(link)
+    }
+
+    private fun onCableHint(on: Boolean) {
+        if (session == null) return
+        mutableState.value = mutableState.value.copy(cableWithoutLink = on)
     }
 
     override fun onDestroy() {

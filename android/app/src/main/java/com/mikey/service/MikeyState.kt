@@ -15,8 +15,13 @@ sealed interface Link {
     data class Refused(val reason: String) : Link
 }
 
-/** What the screen shows. MikeyService owns it; the UI only reads it. */
+/**
+ * What the screen shows. MikeyService owns it; the UI only reads it.
+ * [cableWithoutLink]: a USB cable to a computer is in, but neither USB level works, so the UI can
+ * suggest turning on USB tethering (connection-levels.md).
+ */
 data class MikeyState(
     val micOn: Boolean = false,
     val link: Link = Link.Searching,
+    val cableWithoutLink: Boolean = false,
 )

@@ -25,25 +25,33 @@ import com.mikey.transport.WifiLatencyLock
 import org.json.JSONException
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
+import java.io.Closeable
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.IOException
 import java.net.ProtocolException
-import java.net.Socket
 import java.net.SocketTimeoutException
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.concurrent.thread
 
 /**
  * Streams the mic to the PC: connect, handshake, send audio and heartbeats, and reconnect with
- * backoff when the link drops. The network runs on its own thread; the capture thread only drops
- * frames into a small queue, so recording never waits on the network.
+ * backoff when the link drops. While streaming, a second thread watches for a better level and
+ * opens it first, so the audio moves over without a gap and the old link is closed after.
  *
- * [onLink] reports every change of [Link]. It is called on the session thread.
+ * The network runs on its own threads; the capture thread only drops frames into a small queue,
+ * so recording never waits on the network. [onLink] and [onCableHint] are called on those threads.
  */
-class SessionController(context: Context, private val onLink: (Link) -> Unit) {
+class SessionController(
+    context: Context,
+    private val onLink: (Link) -> Unit,
+    onCableHint: (Boolean) -> Unit,
+) {
     private val settings = Settings(context)
-    private val transports = TransportManager(settings, Discovery(settings.deviceId, Build.MODEL))
+    private val transports = TransportManager(context, settings, Discovery(settings.deviceId, Build.MODEL), onCableHint)
     private val wifiLock = WifiLatencyLock(context)
     private val frames = ArrayBlockingQueue<AudioFrame>(QUEUE_FRAMES)
     private val capture = AudioCapture(context) { frames.offerDroppingOldest(it) }
@@ -56,6 +64,7 @@ class SessionController(context: Context, private val onLink: (Link) -> Unit) {
 
     fun start() {
         running = true
+        transports.start()
         capture.start()
         thread.start()
     }
@@ -64,6 +73,7 @@ class SessionController(context: Context, private val onLink: (Link) -> Unit) {
     fun stop() {
         running = false
         capture.stop()
+        transports.stop()
         thread.interrupt()
     }
 
@@ -71,16 +81,9 @@ class SessionController(context: Context, private val onLink: (Link) -> Unit) {
         var failures = 0
         while (running) {
             try {
-                val connection = transports.open()
-                val transport = connection.transport
-                connection.socket.use { socket ->
-                    val output = DataOutputStream(BufferedOutputStream(socket.getOutputStream()))
-                    val input = DataInputStream(BufferedInputStream(socket.getInputStream()))
-                    handshake(output, input, transport.level)
-                    if (transport.level == 4) settings.lastPcAddress = transport.host
-                    failures = 0
-                    stream(socket, input, output, transport.level)
-                }
+                val wire = connect(transports.open(), silent = false)
+                failures = 0
+                stream(wire)
             } catch (e: RejectedException) {
                 Log.i(TAG, "PC refused us: ${e.reason}")
                 when (rejectPolicy(e.reason)) {
@@ -97,20 +100,49 @@ class SessionController(context: Context, private val onLink: (Link) -> Unit) {
             } catch (e: IOException) {
                 Log.i(TAG, "No link to the PC: $e")
                 onLink(Link.Searching)
+                transports.noteLevel(0)
             }
             if (running) pause(reconnectDelayMs(failures++))
         }
     }
 
-    /** Sends HELLO and reads the PC's answer. Returns once we're accepted, throws otherwise. */
-    private fun handshake(output: DataOutputStream, input: DataInputStream, level: Int) {
+    /** An open connection to the PC, with its streams. */
+    private class Wire(connection: TransportManager.Connection) : Closeable {
+        private val socket = connection.socket
+        val level = connection.transport.level
+        val host = connection.transport.host
+        val output = DataOutputStream(BufferedOutputStream(socket.getOutputStream()))
+        val input = DataInputStream(BufferedInputStream(socket.getInputStream()))
+
+        override fun close() = socket.close()
+    }
+
+    /** Wraps and greets a fresh connection. Throws (and closes it) unless the PC accepts us. */
+    private fun connect(connection: TransportManager.Connection, silent: Boolean): Wire {
+        val wire = Wire(connection)
+        try {
+            handshake(wire, silent)
+        } catch (e: Exception) {
+            wire.close()
+            throw e
+        }
+        if (wire.level == 4) settings.lastPcAddress = wire.host
+        return wire
+    }
+
+    /**
+     * Sends HELLO and reads the PC's answer. Returns once we're accepted, throws otherwise.
+     * A [silent] handshake is an upgrade while we're already streaming: it must not bother the
+     * PC's user, so PENDING counts as a failure instead of a wait.
+     */
+    private fun handshake(wire: Wire, silent: Boolean) {
         val paired = settings.pairedPc
-        output.writeFrame(FrameType.HELLO, helloPayload(settings.deviceId, Build.MODEL, level, paired?.token))
-        output.flush()
+        wire.output.writeFrame(FrameType.HELLO, helloPayload(settings.deviceId, Build.MODEL, wire.level, paired?.token))
+        wire.output.flush()
         var approvalDeadlineMs = 0L
         while (true) {
             val frame = try {
-                input.readFrame()
+                wire.input.readFrame()
             } catch (e: SocketTimeoutException) {
                 // The PC says nothing while it asks its user. Keep waiting, up to its 60 s prompt limit.
                 if (!running || approvalDeadlineMs == 0L || SystemClock.elapsedRealtime() >= approvalDeadlineMs) throw e
@@ -118,6 +150,7 @@ class SessionController(context: Context, private val onLink: (Link) -> Unit) {
             }
             when (frame.type) {
                 FrameType.PENDING -> {
+                    if (silent) throw IOException("The PC would ask its user; keeping the current link")
                     approvalDeadlineMs = SystemClock.elapsedRealtime() + APPROVAL_WAIT_MS
                     onLink(Link.Waiting)
                 }
@@ -131,7 +164,7 @@ class SessionController(context: Context, private val onLink: (Link) -> Unit) {
                         settings.pairedPc = PairedPc(welcome.pcId, welcome.pcName, welcome.token)
                     }
                     pcCaps = welcome.pcCaps
-                    Log.i(TAG, "${if (welcome.resumed) "Resumed with" else "Connected to"} ${welcome.pcName} on level $level")
+                    Log.i(TAG, "${if (welcome.resumed) "Resumed with" else "Connected to"} ${welcome.pcName} on level ${wire.level}")
                     return
                 }
                 FrameType.REJECT -> throw RejectedException(parseReject(frame.payload))
@@ -140,18 +173,31 @@ class SessionController(context: Context, private val onLink: (Link) -> Unit) {
         }
     }
 
-    /** Sends audio and heartbeats until stopped (then says BYE), or throws when the link fails. */
-    private fun stream(socket: Socket, input: DataInputStream, output: DataOutputStream, level: Int) {
+    /**
+     * Sends audio and heartbeats until stopped (then says BYE), or throws when the link fails.
+     * Moves to a better link whenever the upgrade thread hands one over.
+     */
+    private fun stream(first: Wire) {
+        var wire = first
+        val current = AtomicReference(first)
+        val better = AtomicReference<Wire?>()
+        val active = AtomicBoolean(true)
         frames.clear() // Audio queued while we were offline is too old to play now.
-        if (running) onLink(Link.Live(level))
-        if (level == 4) wifiLock.hold()
-        val codec = audioCodecFor(level, settings.losslessWifi, pcHasOpus = "opus" in pcCaps)
-        val encoder = if (codec == AudioCodec.OPUS) OpusEncoder(OpusEncoder.Application.LOW_DELAY, WIFI_OPUS_BITRATE) else null
-        Log.i(TAG, "Sending ${if (encoder == null) "raw PCM" else "Opus ${WIFI_OPUS_BITRATE / 1000} kbps"}")
-        Thread({ receive(input, socket) }, "mikey-receive").start()
+        var encoder = startSending(wire)
+        val upgrader = thread(name = "mikey-upgrade") { upgradeLoop(current, better, active) }
         try {
             var lastHeartbeatMs = 0L
             while (running) {
+                better.getAndSet(null)?.let { next ->
+                    val old = wire
+                    wire = next
+                    current.set(next)
+                    encoder?.close()
+                    encoder = startSending(next)
+                    sayBye(old, "switch")
+                    old.close()
+                    Log.i(TAG, "Moved from level ${old.level} to level ${next.level}")
+                }
                 val frame = try {
                     frames.poll(POLL_MS, TimeUnit.MILLISECONDS)
                 } catch (e: InterruptedException) {
@@ -159,7 +205,7 @@ class SessionController(context: Context, private val onLink: (Link) -> Unit) {
                 }
                 if (frame != null) {
                     if (encoder == null) {
-                        output.writeMediaFrame(
+                        wire.output.writeMediaFrame(
                             FrameType.AUDIO,
                             frame.seq,
                             frame.captureTimeUs,
@@ -171,7 +217,7 @@ class SessionController(context: Context, private val onLink: (Link) -> Unit) {
                     } else {
                         val length = encoder.encode(frame.pcm)
                         if (length > 0) {
-                            output.writeMediaFrame(
+                            wire.output.writeMediaFrame(
                                 FrameType.AUDIO,
                                 frame.seq,
                                 frame.captureTimeUs,
@@ -185,37 +231,80 @@ class SessionController(context: Context, private val onLink: (Link) -> Unit) {
                 }
                 val nowMs = SystemClock.elapsedRealtime()
                 if (nowMs - lastHeartbeatMs >= HEARTBEAT_MS) {
-                    output.writeFrame(FrameType.HEARTBEAT, heartbeatPayload(SystemClock.elapsedRealtimeNanos() / 1000))
+                    wire.output.writeFrame(FrameType.HEARTBEAT, heartbeatPayload(SystemClock.elapsedRealtimeNanos() / 1000))
                     lastHeartbeatMs = nowMs
                 }
-                output.flush()
+                wire.output.flush()
             }
-            sayBye(output)
+            sayBye(wire, "stop")
+        } catch (e: IOException) {
+            transports.markDead(wire.level)
+            throw e
         } finally {
+            active.set(false)
+            transports.wake()
+            upgrader.interrupt()
+            better.getAndSet(null)?.close()
             encoder?.close()
             wifiLock.release()
             onLink(Link.Searching)
-            socket.close()
+            transports.noteLevel(0)
+            wire.close()
         }
     }
 
+    /** Everything that depends on which link we send on: state, Wi-Fi lock, codec, and the reader. */
+    private fun startSending(wire: Wire): OpusEncoder? {
+        if (running) onLink(Link.Live(wire.level))
+        transports.noteLevel(wire.level)
+        if (wire.level == 4) wifiLock.hold() else wifiLock.release()
+        val codec = audioCodecFor(wire.level, settings.losslessWifi, pcHasOpus = "opus" in pcCaps)
+        val encoder = if (codec == AudioCodec.OPUS) OpusEncoder(OpusEncoder.Application.LOW_DELAY, WIFI_OPUS_BITRATE) else null
+        Log.i(TAG, "Level ${wire.level}: sending ${if (encoder == null) "raw PCM" else "Opus ${WIFI_OPUS_BITRATE / 1000} kbps"}")
+        thread(name = "mikey-receive") { receive(wire) }
+        return encoder
+    }
+
+    /**
+     * Waits for a chance at a better level, opens and greets it, and hands it to [stream].
+     * A failed try just waits for the next chance; the current link keeps streaming meanwhile.
+     */
+    private fun upgradeLoop(current: AtomicReference<Wire>, better: AtomicReference<Wire?>, active: AtomicBoolean) {
+        while (active.get() && running) {
+            transports.waitForBetterChance(current.get().level)
+            if (!active.get() || !running || better.get() != null) continue
+            val level = current.get().level
+            val next = try {
+                connect(transports.openBetterThan(level), silent = true)
+            } catch (e: IOException) {
+                transports.noteLevel(level)
+                continue
+            } catch (e: RejectedException) {
+                Log.i(TAG, "No upgrade: PC said ${e.reason}")
+                continue
+            }
+            if (active.get()) better.set(next) else next.close()
+        }
+        better.getAndSet(null)?.close()
+    }
+
     /** Any frame from the PC proves the link is alive. Six silent seconds or a BYE end it. */
-    private fun receive(input: DataInputStream, socket: Socket) {
+    private fun receive(wire: Wire) {
         try {
             do {
-                val frame = input.readFrame()
+                val frame = wire.input.readFrame()
             } while (frame.type != FrameType.BYE)
         } catch (e: IOException) {
             // Timed out, dropped, or closed by the sender.
         } finally {
-            socket.close() // Makes the sender's next write fail, so it reconnects.
+            wire.close() // Makes the sender's next write fail, so it reconnects.
         }
     }
 
-    private fun sayBye(output: DataOutputStream) {
+    private fun sayBye(wire: Wire, reason: String) {
         try {
-            output.writeFrame(FrameType.BYE, byePayload("stop"))
-            output.flush()
+            wire.output.writeFrame(FrameType.BYE, byePayload(reason))
+            wire.output.flush()
         } catch (e: IOException) {
             // Best effort: the PC also notices the socket closing.
         }
