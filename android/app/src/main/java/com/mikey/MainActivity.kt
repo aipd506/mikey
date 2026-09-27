@@ -22,9 +22,13 @@ import com.mikey.ui.SplitScreen
 
 class MainActivity : ComponentActivity() {
 
-    private val requestPermissions = registerForActivityResult(RequestMultiplePermissions()) {
+    private val requestMicPermissions = registerForActivityResult(RequestMultiplePermissions()) {
         // Only the mic is a must. Notifications and Bluetooth are nice to have; without them the app still works.
-        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) MikeyService.micOn(this)
+        if (granted(Manifest.permission.RECORD_AUDIO)) MikeyService.micOn(this)
+    }
+
+    private val requestCameraPermission = registerForActivityResult(RequestMultiplePermissions()) {
+        if (granted(Manifest.permission.CAMERA)) MikeyService.cameraOn(this)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,6 +42,8 @@ class MainActivity : ComponentActivity() {
             SplitScreen(
                 state,
                 onMicTap = ::onMicTap,
+                onCameraTap = ::onCameraTap,
+                onFlip = { MikeyService.flip(this) },
                 onStatusLongPress = if (isDebuggable()) ::askPcAddress else null,
             )
         }
@@ -48,9 +54,20 @@ class MainActivity : ComponentActivity() {
             MikeyService.micOff(this)
             return
         }
-        val missing = micPermissions(Settings(this)).filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
-        if (missing.isEmpty()) MikeyService.micOn(this) else requestPermissions.launch(missing.toTypedArray())
+        val missing = micPermissions(Settings(this)).filter { !granted(it) }
+        if (missing.isEmpty()) MikeyService.micOn(this) else requestMicPermissions.launch(missing.toTypedArray())
     }
+
+    /** Camera permission is asked on the first camera tap, never up front. */
+    private fun onCameraTap() {
+        when {
+            MikeyService.state.value.camera.on -> MikeyService.cameraOff(this)
+            granted(Manifest.permission.CAMERA) -> MikeyService.cameraOn(this)
+            else -> requestCameraPermission.launch(arrayOf(Manifest.permission.CAMERA))
+        }
+    }
+
+    private fun granted(permission: String) = checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
 
     /** Debug builds only: type the PC's address to test over Wi-Fi (empty means USB), or forget the paired PC. */
     private fun askPcAddress() {
