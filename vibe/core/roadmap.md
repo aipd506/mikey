@@ -38,7 +38,7 @@ Android
 - [x] Opus on Bluetooth (48 kbps / 20 ms, VOIP mode); needs the real-device test
 - [ ] AAudio low-latency capture
 - [x] Bluetooth transport (bonded computers only, cached MAC); needs the real-device test
-- [ ] Notification: live state text, soft mute/unmute, Stop
+- [x] Notification: live state text, soft mute/unmute, Stop
 - [x] Pairing token storage; PENDING/REJECT handling; "Forget"
 - [x] USB-connected-but-no-link tethering hint (in the state; the UI shows it later)
 

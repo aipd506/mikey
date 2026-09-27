@@ -71,6 +71,12 @@ Fields:
 - `video.aspect`: string, `"16:9"`, `"4:3"`, `"1:1"`.
 - `video.fps`: integer, `15` or `30`.
 
+Rules:
+- The phone sends its full audio settings and its mute state right after WELCOME, and again after every link switch. After that only what changed is sent.
+- `video.on: true` from the PC is refused: only the phone can start capture (Android needs the app on screen for that), so the phone answers `{"video":{"on":false}}`. Everything else from the PC is applied and kept on the phone.
+- `video.preview` is PC-only. The phone never shows the video and ignores it.
+- Both sides ignore fields they don't know.
+
 ## Media header (inside AUDIO/VIDEO payloads)
 
 ```
