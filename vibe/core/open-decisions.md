@@ -11,3 +11,5 @@ Decisions made in this brain that the owner may want to revisit. Current choice 
 7. **Phone preview when camera is on** → **On by default**, toggle under Advanced to save battery.
 8. **Where audio processing runs** → **PC only.** The phone sends raw audio (raw PCM on USB, Opus on Wi‑Fi/Bluetooth).
 9. **Background blur/removal** → **Not built.** It would add an AI model + inference runtime (several MB) and per-frame CPU (or phone battery/heat), and Zoom, Meet, Teams and Discord already do it well. Revisit only as an optional, off-by-default add-on if users ask.
+10. **PC UI: Native context menu vs. custom tray flyout dialog** → **Custom tray flyout dialog.** A standard OS context menu (`muda`/Win32 menu) is static, visually dated, and cannot host rich interactive controls (live audio VU meters, volume/gain sliders, embedded camera preview thumbnail, DSP toggle buttons, or inline device switcher cards). The flyout is an anchored, borderless companion window built in lightweight native Rust (`egui`/`eframe` or borderless GUI) that opens on tray click and light-dismisses on blur, keeping idle memory < 15 MB.
+

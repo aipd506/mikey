@@ -5,10 +5,10 @@ These apply from Phase 1 onwards. They are not suggestions.
 1. **Build only what the current phase needs.** No abstractions for later phases.
 2. **One responsibility per file.** `tcp.rs` does TCP. `beacon.rs` does discovery. Never two concerns in one file.
 3. **No dependency without a reason.** Every crate/library must appear in [tech-stack.md](../architecture/tech-stack.md). If it isn't there, propose updating [tech-stack.md](../architecture/tech-stack.md) first.
-4. **UI never owns logic.** Compose observes `StateFlow` from the service; the tray reflects `SessionManager` state.
+4. **UI never owns logic.** Compose observes `StateFlow` from the service; the tray & flyout reflect `SessionManager` state.
 5. **Real-time paths never block on I/O or locks held by other threads.** Audio capture and audio output use bounded, lock-free or try-lock handoffs; when in doubt, drop old data.
 6. **Every socket has a timeout; every queue has a bound.** No unbounded growth anywhere.
-7. **Platform code behind `cfg`/interfaces.** Windows and Linux differences live only in `sink.rs`, `vcam.rs`, `bt.rs`, `tray.rs`, `notify.rs`, `autostart.rs`.
+7. **Platform code behind `cfg`/interfaces.** Windows and Linux differences live only in `sink.rs`, `vcam.rs`, `bt.rs`, `tray.rs`, `flyout.rs`, `notify.rs`, `autostart.rs`.
 8. **Formatting:** `rustfmt` + `clippy -D warnings` (PC), `ktlint` (Android). Run before committing.
 9. **English everywhere.** Names, comments, commits.
 10. **Comments only where non-obvious.** Explain *why*, not *what*.

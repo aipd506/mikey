@@ -38,8 +38,9 @@ Android
 - [ ] USB-connected-but-no-link tethering hint
 
 PC
-- [ ] Tray icon + menu per [pc-ux.md](pc-ux.md); autostart at login
-- [ ] `beacon.rs`, `bt.rs` (Windows + Linux)
+- [x] Tray icon + autostart at login
+- [x] Tray flyout companion app per [pc-ux.md](pc-ux.md) (replaces native context menu with anchored dialog: live VU meter, volume slider, DSP toggles, device switcher, embedded preview)
+- [x] `beacon.rs`, `bt.rs` (Windows + Linux)
 - [x] `session.rs`: tokens, trust rules ([sessions-trust.md](../architecture/sessions-trust.md)), ask-before-join prompts, one-active rule, handover with 30 s session hold
 - [x] Opus decode; adaptive jitter buffer; drift resampler; 200 ms latency cap
 - [x] Virtual-device detection with "Install…" guidance
@@ -59,11 +60,11 @@ Android
 - [ ] Camera disabled with explanation on Level 3
 
 PC
-- [ ] JPEG decode → virtual camera (softcam / v4l2loopback)
-- [ ] Hold-last-frame during flip; placeholder frame when camera off
-- [ ] Letterboxing on mid-use aspect change
-- [ ] "Show preview" window
-- [ ] Installer registers softcam; Linux v4l2loopback setup + docs
+- [x] JPEG decode → virtual camera (softcam / v4l2loopback)
+- [x] Hold-last-frame during flip; placeholder frame when camera off
+- [x] Letterboxing on mid-use aspect change
+- [x] "Show preview" window
+- [x] Installer registers softcam; Linux v4l2loopback setup + docs
 
 ## Phase 4 — Audio quality: noise & echo
 
@@ -76,10 +77,10 @@ Android
 - [ ] Settings greyed out when the PC doesn't report the capability
 
 PC
-- [ ] Noise gate, RNNoise (`nnnoiseless`)
-- [ ] Loopback reference capture; SpeexDSP AEC with delay hint from jitter buffer
-- [ ] Echo reference device choice in tray
-- [ ] Quality evaluation; decision recorded here on whether to move to WebRTC AEC3
+- [x] Noise gate, RNNoise (`nnnoiseless`)
+- [x] Loopback reference capture; SpeexDSP AEC with delay hint from jitter buffer
+- [x] Echo reference device choice in tray flyout
+- [x] Quality evaluation; decision recorded here on whether to move to WebRTC AEC3
 
 ## Phase 5 — Hardening & release
 

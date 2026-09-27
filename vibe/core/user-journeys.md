@@ -4,7 +4,7 @@
 
 1. Download the installer from GitHub Releases, run it.
 2. The installer: copies `mikey`, registers the virtual camera (one admin prompt on Windows), adds a firewall rule for private networks, enables autostart, launches the tray app.
-3. The tray icon appears. If the virtual mic driver is missing, the tray shows a single notice: *"One more step: install the virtual microphone"* → opens the download page. Mikey detects it automatically once installed; no restart of Mikey needed.
+3. The tray icon appears. If the virtual mic driver is missing, the tray icon turns amber and the flyout displays an actionable card: *"One more step: install the virtual microphone"* → clicking it opens the download page. Mikey detects it automatically once installed; no restart of Mikey needed.
 4. Done. The user never opens the PC side again unless they want to.
 
 ## First-time setup (phone)
@@ -18,10 +18,10 @@
 
 | Level | One-time step |
 |---|---|
-| 1 USB debugging | Phone shows *"Allow USB debugging?"* → tick *Always allow from this computer* → Allow. The PC tray says *"Tap Allow on your phone"* while waiting. |
+| 1 USB debugging | Phone shows *"Allow USB debugging?"* → tick *Always allow from this computer* → Allow. The PC tray icon turns amber and the flyout/notification says *"Tap Allow on your phone"* while waiting. |
 | 2 USB tethering | User turns on USB tethering (Mikey offers a shortcut to that settings page when it sees a USB cable but no Level 1/2 link). |
 | 3 Bluetooth | Phone and PC must be paired once in the OS Bluetooth settings. Mikey asks for the Bluetooth permission the first time it tries this level. |
-| 4 Wi‑Fi | First time only: the PC shows *"Pixel 7 wants to connect — Allow / Deny"*. After that, it joins silently. |
+| 4 Wi‑Fi | First time only: the PC shows *"Pixel 7 wants to connect — Allow / Deny"* via notification and flyout banner. After that, it joins silently. |
 
 ## Daily use
 

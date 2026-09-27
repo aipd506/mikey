@@ -9,7 +9,7 @@
 ## Session
 
 - A session = one phone streaming to the PC. It survives transport changes ([connection-levels.md](connection-levels.md)) via a `session_token`.
-- **One active session** per PC. Other known devices are listed in the tray; switching is explicit.
+- **One active session** per PC. Other known devices are listed in the tray flyout; switching is explicit.
 
 ## Trust rules
 
@@ -21,6 +21,6 @@
 | New device via **Wi‑Fi (L4)** | **Prompt once**, then remembered | Prompt |
 | Another device while one is streaming | Prompt "Switch?" | Prompt "Switch?" |
 
-Why Wi‑Fi asks once even with the toggle off: on shared networks (dorms, offices, cafés) anyone with the app could otherwise pipe audio into your microphone. For a single-device user this costs exactly one click, ever. Power users can disable it: *Advanced → Trust new Wi‑Fi devices automatically*.
+Why Wi‑Fi asks once even with the toggle off: on shared networks (dorms, offices, cafés) anyone with the app could otherwise pipe audio into your microphone. For a single-device user this costs exactly one click, ever. Power users can disable it: *Advanced → Trust new Wi-Fi devices automatically*.
 
-**Forget** (tray or phone) deletes the token on that side; the next connection is treated as new.
+**Forget** (tray flyout or phone) deletes the token on that side; the next connection is treated as new.

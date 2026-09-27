@@ -17,8 +17,8 @@ Priority order (1 = best). Mikey always uses the best level currently available 
 - Uses the `adb` found on `PATH` if present (avoids killing a developer's own ADB server with a version mismatch); otherwise a bundled `adb` from Android platform-tools shipped next to `mikey` (verify redistribution terms before release — scrcpy ships the same way).
 - Starts the ADB server only if the "USB debugging" level is enabled, and runs `adb track-devices` (event stream, no polling).
 - On `device` state: `adb -s <serial> reverse tcp:7653 tcp:7653`. If *Open Mikey on phone when plugged in* is on and the app isn't in the foreground: `adb -s <serial> shell am start -n com.mikey/.MainActivity`.
-- On `unauthorized` state: tray turns amber, notification *"Tap Allow on your phone"*.
-- Windows note: most phones work with the generic WinUSB/MTP-composite driver; some OEMs need their USB driver. Link to it from the tray "Needs attention" item if `adb` sees no device while a phone is plugged in.
+- On `unauthorized` state: tray icon turns amber, notification *"Tap Allow on your phone"*, and the flyout displays an actionable hint card.
+- Windows note: most phones work with the generic WinUSB/MTP-composite driver; some OEMs need their USB driver. Link to it from the flyout's "Needs attention" card if `adb` sees no device while a phone is plugged in.
 
 **Phone side:** `AdbTransport.probe()` = try TCP connect to `127.0.0.1:7653` with a 300 ms timeout. Succeeds only if a reverse tunnel exists. Cheap enough to run on every trigger ([connection-levels.md](connection-levels.md)).
 

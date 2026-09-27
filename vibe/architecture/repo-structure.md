@@ -24,9 +24,10 @@ mikey/
 │   ├── src/
 │   │   ├── main.rs            # Startup, single-instance lock, thread wiring
 │   │   ├── config.rs          # config.toml, trusted devices
-│   │   ├── tray.rs            # Tray icon + menu (cfg per OS)
+│   │   ├── tray.rs            # Tray icon & event handling (cfg per OS)
+│   │   ├── flyout.rs          # Anchored tray companion window / mini-app UI
 │   │   ├── notify.rs          # Join prompts, attention notices
-│   │   ├── preview.rs         # minifb preview window
+│   │   ├── preview.rs         # Preview renderer (embedded in flyout or detached)
 │   │   ├── session.rs         # SessionManager: handshake, trust, handover, one-active rule
 │   │   ├── protocol.rs        # Framing, frame types, media header
 │   │   ├── transport/
