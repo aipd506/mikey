@@ -18,7 +18,9 @@ import com.mikey.protocol.writeFrame
 import com.mikey.protocol.writeMediaFrame
 import com.mikey.settings.PairedPc
 import com.mikey.settings.Settings
-import com.mikey.transport.TcpTransport
+import com.mikey.transport.Discovery
+import com.mikey.transport.TransportManager
+import com.mikey.transport.WifiLatencyLock
 import org.json.JSONException
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
@@ -40,6 +42,8 @@ import java.util.concurrent.TimeUnit
  */
 class SessionController(context: Context, private val onLink: (Link) -> Unit) {
     private val settings = Settings(context)
+    private val transports = TransportManager(settings, Discovery(settings.deviceId, Build.MODEL))
+    private val wifiLock = WifiLatencyLock(context)
     private val frames = ArrayBlockingQueue<AudioFrame>(QUEUE_FRAMES)
     private val capture = AudioCapture(context) { frames.offerDroppingOldest(it) }
     private val thread = Thread(::sessionLoop, "mikey-session")
@@ -62,13 +66,14 @@ class SessionController(context: Context, private val onLink: (Link) -> Unit) {
     private fun sessionLoop() {
         var failures = 0
         while (running) {
-            // Read on every attempt, so a newly typed address is used on the next connect.
-            val transport = settings.manualPcAddress?.let { TcpTransport.manual(it) } ?: TcpTransport.adb()
             try {
-                transport.open().use { socket ->
+                val connection = transports.open()
+                val transport = connection.transport
+                connection.socket.use { socket ->
                     val output = DataOutputStream(BufferedOutputStream(socket.getOutputStream()))
                     val input = DataInputStream(BufferedInputStream(socket.getInputStream()))
                     handshake(output, input, transport.level)
+                    if (transport.level == 4) settings.lastPcAddress = transport.host
                     failures = 0
                     stream(socket, input, output, transport.level)
                 }
@@ -134,6 +139,7 @@ class SessionController(context: Context, private val onLink: (Link) -> Unit) {
     private fun stream(socket: Socket, input: DataInputStream, output: DataOutputStream, level: Int) {
         frames.clear() // Audio queued while we were offline is too old to play now.
         if (running) onLink(Link.Live(level))
+        if (level == 4) wifiLock.hold()
         Thread({ receive(input, socket) }, "mikey-receive").start()
         try {
             var lastHeartbeatMs = 0L
@@ -163,6 +169,7 @@ class SessionController(context: Context, private val onLink: (Link) -> Unit) {
             }
             sayBye(output)
         } finally {
+            wifiLock.release()
             onLink(Link.Searching)
             socket.close()
         }
