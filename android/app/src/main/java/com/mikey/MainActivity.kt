@@ -22,8 +22,9 @@ import com.mikey.ui.SplitScreen
 
 class MainActivity : ComponentActivity() {
 
-    private val requestMicPermission = registerForActivityResult(RequestMultiplePermissions()) { granted ->
-        if (granted[Manifest.permission.RECORD_AUDIO] == true) MikeyService.micOn(this)
+    private val requestPermissions = registerForActivityResult(RequestMultiplePermissions()) {
+        // Only the mic is a must. Notifications and Bluetooth are nice to have; without them the app still works.
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) MikeyService.micOn(this)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -43,12 +44,12 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun onMicTap() {
-        when {
-            MikeyService.state.value.micOn -> MikeyService.micOff(this)
-            checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED ->
-                MikeyService.micOn(this)
-            else -> requestMicPermission.launch(micPermissions())
+        if (MikeyService.state.value.micOn) {
+            MikeyService.micOff(this)
+            return
         }
+        val missing = micPermissions(Settings(this)).filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
+        if (missing.isEmpty()) MikeyService.micOn(this) else requestPermissions.launch(missing.toTypedArray())
     }
 
     /** Debug builds only: type the PC's address to test over Wi-Fi (empty means USB), or forget the paired PC. */
@@ -74,10 +75,12 @@ class MainActivity : ComponentActivity() {
     private fun isDebuggable() = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
 }
 
-/** Asked only on the first mic tap. Android 13+ also needs notification permission for the status notification. */
-private fun micPermissions(): Array<String> =
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        arrayOf(Manifest.permission.RECORD_AUDIO, Manifest.permission.POST_NOTIFICATIONS)
-    } else {
-        arrayOf(Manifest.permission.RECORD_AUDIO)
-    }
+/**
+ * Asked on the first mic tap, never up front. Android 13+ needs notification permission for the
+ * status notification, and Android 12+ needs Bluetooth permission to reach a paired PC over it.
+ */
+private fun micPermissions(settings: Settings): List<String> = buildList {
+    add(Manifest.permission.RECORD_AUDIO)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) add(Manifest.permission.POST_NOTIFICATIONS)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && 3 in settings.enabledLevels) add(Manifest.permission.BLUETOOTH_CONNECT)
+}

@@ -6,6 +6,7 @@ import android.os.SystemClock
 import android.util.Log
 import com.mikey.media.AudioCapture
 import com.mikey.media.AudioFrame
+import com.mikey.media.FrameJoiner
 import com.mikey.media.OpusEncoder
 import com.mikey.protocol.FrameType
 import com.mikey.protocol.MediaHeader
@@ -19,6 +20,7 @@ import com.mikey.protocol.writeFrame
 import com.mikey.protocol.writeMediaFrame
 import com.mikey.settings.PairedPc
 import com.mikey.settings.Settings
+import com.mikey.transport.Connection
 import com.mikey.transport.Discovery
 import com.mikey.transport.TransportManager
 import com.mikey.transport.WifiLatencyLock
@@ -30,7 +32,6 @@ import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.IOException
 import java.net.ProtocolException
-import java.net.SocketTimeoutException
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -59,6 +60,9 @@ class SessionController(
 
     @Volatile private var running = false
 
+    /** The link being greeted right now, so stop() can cut a long wait for approval short. */
+    @Volatile private var greeting: Wire? = null
+
     /** What the PC said it can do in WELCOME, e.g. `opus`. */
     private var pcCaps: Set<String> = emptySet()
 
@@ -75,6 +79,7 @@ class SessionController(
         capture.stop()
         transports.stop()
         thread.interrupt()
+        greeting?.close()
     }
 
     private fun sessionLoop() {
@@ -106,27 +111,43 @@ class SessionController(
         }
     }
 
-    /** An open connection to the PC, with its streams. */
-    private class Wire(connection: TransportManager.Connection) : Closeable {
-        private val socket = connection.socket
-        val level = connection.transport.level
-        val host = connection.transport.host
-        val output = DataOutputStream(BufferedOutputStream(socket.getOutputStream()))
-        val input = DataInputStream(BufferedInputStream(socket.getInputStream()))
+    /** An open connection to the PC, with framed streams. */
+    private class Wire(private val connection: Connection) : Closeable {
+        val level = connection.level
+        val host = connection.host
+        val output = DataOutputStream(BufferedOutputStream(connection.output))
+        val input = DataInputStream(BufferedInputStream(connection.input))
 
-        override fun close() = socket.close()
+        /** No frame from the PC for this long means the link is dead (wire-protocol.md). */
+        var readTimeoutMs: Int
+            get() = connection.readTimeoutMs
+            set(value) {
+                connection.readTimeoutMs = value
+            }
+
+        init {
+            readTimeoutMs = LINK_TIMEOUT_MS
+        }
+
+        override fun close() = connection.close()
     }
 
     /** Wraps and greets a fresh connection. Throws (and closes it) unless the PC accepts us. */
-    private fun connect(connection: TransportManager.Connection, silent: Boolean): Wire {
+    private fun connect(connection: Connection, silent: Boolean): Wire {
         val wire = Wire(connection)
+        greeting = wire
         try {
             handshake(wire, silent)
         } catch (e: Exception) {
             wire.close()
             throw e
+        } finally {
+            greeting = null
         }
-        if (wire.level == 4) settings.lastPcAddress = wire.host
+        when (wire.level) {
+            3 -> settings.pcBtAddress = wire.host
+            4 -> settings.lastPcAddress = wire.host
+        }
         return wire
     }
 
@@ -139,19 +160,13 @@ class SessionController(
         val paired = settings.pairedPc
         wire.output.writeFrame(FrameType.HELLO, helloPayload(settings.deviceId, Build.MODEL, wire.level, paired?.token))
         wire.output.flush()
-        var approvalDeadlineMs = 0L
         while (true) {
-            val frame = try {
-                wire.input.readFrame()
-            } catch (e: SocketTimeoutException) {
-                // The PC says nothing while it asks its user. Keep waiting, up to its 60 s prompt limit.
-                if (!running || approvalDeadlineMs == 0L || SystemClock.elapsedRealtime() >= approvalDeadlineMs) throw e
-                continue
-            }
+            val frame = wire.input.readFrame()
             when (frame.type) {
                 FrameType.PENDING -> {
                     if (silent) throw IOException("The PC would ask its user; keeping the current link")
-                    approvalDeadlineMs = SystemClock.elapsedRealtime() + APPROVAL_WAIT_MS
+                    // The PC says nothing while it asks its user. Wait it out, up to its 60 s prompt limit.
+                    wire.readTimeoutMs = APPROVAL_WAIT_MS
                     onLink(Link.Waiting)
                 }
                 FrameType.WELCOME -> {
@@ -164,6 +179,7 @@ class SessionController(
                         settings.pairedPc = PairedPc(welcome.pcId, welcome.pcName, welcome.token)
                     }
                     pcCaps = welcome.pcCaps
+                    wire.readTimeoutMs = LINK_TIMEOUT_MS
                     Log.i(TAG, "${if (welcome.resumed) "Resumed with" else "Connected to"} ${welcome.pcName} on level ${wire.level}")
                     return
                 }
@@ -183,7 +199,7 @@ class SessionController(
         val better = AtomicReference<Wire?>()
         val active = AtomicBoolean(true)
         frames.clear() // Audio queued while we were offline is too old to play now.
-        var encoder = startSending(wire)
+        var sender = startSending(wire)
         val upgrader = thread(name = "mikey-upgrade") { upgradeLoop(current, better, active) }
         try {
             var lastHeartbeatMs = 0L
@@ -192,8 +208,8 @@ class SessionController(
                     val old = wire
                     wire = next
                     current.set(next)
-                    encoder?.close()
-                    encoder = startSending(next)
+                    sender.close()
+                    sender = startSending(next)
                     sayBye(old, "switch")
                     old.close()
                     Log.i(TAG, "Moved from level ${old.level} to level ${next.level}")
@@ -203,32 +219,7 @@ class SessionController(
                 } catch (e: InterruptedException) {
                     null
                 }
-                if (frame != null) {
-                    if (encoder == null) {
-                        wire.output.writeMediaFrame(
-                            FrameType.AUDIO,
-                            frame.seq,
-                            frame.captureTimeUs,
-                            MediaHeader.CODEC_PCM_S16LE,
-                            frame.pcm,
-                            0,
-                            frame.pcm.size,
-                        )
-                    } else {
-                        val length = encoder.encode(frame.pcm)
-                        if (length > 0) {
-                            wire.output.writeMediaFrame(
-                                FrameType.AUDIO,
-                                frame.seq,
-                                frame.captureTimeUs,
-                                MediaHeader.CODEC_OPUS,
-                                encoder.packet,
-                                0,
-                                length,
-                            )
-                        }
-                    }
-                }
+                if (frame != null) sender.send(frame, wire.output)
                 val nowMs = SystemClock.elapsedRealtime()
                 if (nowMs - lastHeartbeatMs >= HEARTBEAT_MS) {
                     wire.output.writeFrame(FrameType.HEARTBEAT, heartbeatPayload(SystemClock.elapsedRealtimeNanos() / 1000))
@@ -245,7 +236,7 @@ class SessionController(
             transports.wake()
             upgrader.interrupt()
             better.getAndSet(null)?.close()
-            encoder?.close()
+            sender.close()
             wifiLock.release()
             onLink(Link.Searching)
             transports.noteLevel(0)
@@ -253,16 +244,36 @@ class SessionController(
         }
     }
 
+    /** Turns capture frames into AUDIO frames for one link: raw PCM, or Opus with the link's profile. */
+    private class Sender(private val encoder: OpusEncoder?, private val joiner: FrameJoiner) : Closeable {
+        fun send(frame: AudioFrame, output: DataOutputStream) {
+            if (encoder == null) {
+                output.writeMediaFrame(FrameType.AUDIO, frame.seq, frame.captureTimeUs, MediaHeader.CODEC_PCM_S16LE, frame.pcm, 0, frame.pcm.size)
+                return
+            }
+            val packet = joiner.add(frame) ?: return
+            val length = encoder.encode(packet.pcm)
+            if (length > 0) {
+                output.writeMediaFrame(FrameType.AUDIO, packet.seq, packet.captureTimeUs, MediaHeader.CODEC_OPUS, encoder.packet, 0, length)
+            }
+        }
+
+        override fun close() {
+            encoder?.close()
+        }
+    }
+
     /** Everything that depends on which link we send on: state, Wi-Fi lock, codec, and the reader. */
-    private fun startSending(wire: Wire): OpusEncoder? {
+    private fun startSending(wire: Wire): Sender {
         if (running) onLink(Link.Live(wire.level))
         transports.noteLevel(wire.level)
         if (wire.level == 4) wifiLock.hold() else wifiLock.release()
         val codec = audioCodecFor(wire.level, settings.losslessWifi, pcHasOpus = "opus" in pcCaps)
-        val encoder = if (codec == AudioCodec.OPUS) OpusEncoder(OpusEncoder.Application.LOW_DELAY, WIFI_OPUS_BITRATE) else null
-        Log.i(TAG, "Level ${wire.level}: sending ${if (encoder == null) "raw PCM" else "Opus ${WIFI_OPUS_BITRATE / 1000} kbps"}")
+        val profile = opusProfileFor(wire.level)
+        val encoder = if (codec == AudioCodec.OPUS) OpusEncoder(profile.application, profile.bitrate) else null
+        Log.i(TAG, "Level ${wire.level}: sending ${if (encoder == null) "raw PCM" else "Opus ${profile.bitrate / 1000} kbps, ${profile.framesPerPacket * 10} ms frames"}")
         thread(name = "mikey-receive") { receive(wire) }
-        return encoder
+        return Sender(encoder, FrameJoiner(profile.framesPerPacket))
     }
 
     /**
@@ -330,13 +341,11 @@ class SessionController(
         const val QUEUE_FRAMES = 20
         const val HEARTBEAT_MS = 2_000L
         const val POLL_MS = 100L
+        const val LINK_TIMEOUT_MS = 6_000
 
         /** The PC gives its user 60 s to answer the prompt. A little longer, so we never give up first. */
-        const val APPROVAL_WAIT_MS = 65_000L
+        const val APPROVAL_WAIT_MS = 65_000
         const val REJECT_RETRY_MS = 5_000L
-
-        /** Transparent to the ear for one voice, and a tenth of raw PCM (media-pipeline.md). */
-        const val WIFI_OPUS_BITRATE = 96_000
     }
 }
 
@@ -348,6 +357,17 @@ internal fun audioCodecFor(level: Int, losslessWifi: Boolean, pcHasOpus: Boolean
     level == 4 && losslessWifi -> AudioCodec.PCM
     else -> AudioCodec.OPUS
 }
+
+/** How Opus is set up on a level. */
+internal class OpusProfile(val application: OpusEncoder.Application, val bitrate: Int, val framesPerPacket: Int)
+
+/**
+ * Wi-Fi: music-grade low delay at 96 kbps, 10 ms frames. Bluetooth: speech mode at 48 kbps and
+ * 20 ms frames, which suit its packet timing (media-pipeline.md). RFCOMM retransmits, so loss
+ * never reaches Opus and FEC would only cost bits.
+ */
+internal fun opusProfileFor(level: Int): OpusProfile =
+    if (level == 3) OpusProfile(OpusEncoder.Application.VOIP, 48_000, 2) else OpusProfile(OpusEncoder.Application.LOW_DELAY, 96_000, 1)
 
 /** The PC answered HELLO with REJECT. */
 private class RejectedException(val reason: String) : Exception("PC said $reason")
