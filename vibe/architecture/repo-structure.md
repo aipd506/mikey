@@ -55,7 +55,6 @@ mikey/
 │
 ├── vibe/                      # Project brain + AI working files (committed)
 │   ├── index.md               # Master brain index — directory map, status & all sections
-│   ├── scratchpad.md          # AI scratch notes
 │   ├── core/                  # What & why: vision, principles, scope, UX, roadmap, risks
 │   ├── architecture/          # How: system design, transports, protocol, media, stack
 │   ├── rules/                 # Invariants: coding rules, design language, budgets, tests

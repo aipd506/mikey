@@ -14,7 +14,6 @@ use std::net::{TcpListener, TcpStream};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
-use std::time::Duration;
 
 pub fn handle_client(
     mut stream: TcpStream,
@@ -134,14 +133,11 @@ pub fn start_tcp_listener(
                         handle_client(stream, jb, vp, sm);
                     });
                 }
-                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                    thread::sleep(Duration::from_millis(50));
-                }
                 Err(e) => {
-                    if running.load(Ordering::Relaxed) {
-                        eprintln!("[tcp] Accept error: {}", e);
+                    if !running.load(Ordering::Relaxed) {
+                        break;
                     }
-                    break;
+                    eprintln!("[tcp] Accept error: {}", e);
                 }
             }
         }

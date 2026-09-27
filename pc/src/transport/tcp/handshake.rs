@@ -12,7 +12,6 @@ pub const SOCKET_TIMEOUT: Duration = Duration::from_secs(6);
 pub fn bind_listener() -> io::Result<TcpListener> {
     let addr = format!("0.0.0.0:{}", PORT_TCP);
     let listener = TcpListener::bind(&addr)?;
-    listener.set_nonblocking(true)?;
     Ok(listener)
 }
 

@@ -10,9 +10,9 @@ The `vibe/` directory is the single source of truth for the Mikey project. It co
 ## Current Status
 
 - **Phase:** 2 (Android) / Phases 1–4 complete (PC) — Audio, Video, DSP, Flyout UI, and Installers locked in (Checklist: [core/roadmap.md](core/roadmap.md)).
-- **Android (`android/`):** Starter project with Gradle (Kotlin DSL, version catalog), Jetpack Compose, package `com.mikey`, min SDK 26. Builds with `./gradlew assembleDebug`.
+- **Android (`android/`):** Phase 1 complete (TCP mic streaming over USB debugging, `MikeyService` foreground service). Builds with `./gradlew assembleDebug`.
 - **PC (`pc/`):** Complete (Phases 1–4). Multi-transport tray app (`mikey`). TCP :7653, UDP beacon :7654, BT RFCOMM, SessionManager, Opus/PCM decoding, adaptive jitter buffer, drift resampler, RNNoise noise suppression, SpeexDSP AEC loopback cancellation, camera pipeline (JPEG decode, letterboxing, vcam, pop-out preview), Win32 GDI flyout companion app, and Inno Setup / Linux packaging installers. All modules <= 175 lines.
-- **Next immediate step:** Android Phase 1 & 2 implementation (UI, MikeyService, AAudio/Opus capture, TransportManager).
+- **Next immediate step:** Phase 2 — Android Phase 2 (full UI per [phone-ux.md](core/phone-ux.md), `TransportManager`, Opus capture, pairing tokens) and completing PC Linux support.
 
 ---
 
@@ -21,8 +21,6 @@ The `vibe/` directory is the single source of truth for the Mikey project. It co
 ```text
 vibe/
 ├── index.md               # This file: master index, directory map & current status
-├── scratchpad.md          # Disposable notes & temporary agent workspace
-│
 ├── core/                  # Product vision, principles, UX specs, roadmap & decisions
 │   ├── vision.md          # Target user, core promise, elevator pitch
 │   ├── principles.md      # The 7 product principles governing all decisions

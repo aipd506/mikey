@@ -1,6 +1,6 @@
 use std::collections::HashSet;
-use std::io::{self, Error, ErrorKind};
-use std::process::Command;
+use std::io::{self, BufRead, BufReader, Error, ErrorKind};
+use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
@@ -61,6 +61,17 @@ pub fn list_devices() -> io::Result<Vec<String>> {
     Ok(devices)
 }
 
+/// Parses a single device entry from an `adb track-devices` line.
+/// Returns (serial, state) if the line has at least two whitespace-separated fields.
+pub fn parse_track_device_line(line: &str) -> Option<(&str, &str)> {
+    let parts: Vec<&str> = line.split_whitespace().collect();
+    if parts.len() >= 2 {
+        Some((parts[0], parts[1]))
+    } else {
+        None
+    }
+}
+
 /// Sets up `adb reverse tcp:{port} tcp:{port}` for all connected authorized devices,
 /// or for a specific device serial if specified.
 pub fn setup_adb_reverse(serial: Option<&str>, port: u16) -> io::Result<()> {
@@ -88,40 +99,72 @@ pub fn setup_adb_reverse(serial: Option<&str>, port: u16) -> io::Result<()> {
 }
 
 /// Runs a background loop that monitors for connected Android devices and automatically
-/// ensures ADB reverse port forwarding is configured when plugged in.
+/// ensures ADB reverse port forwarding is configured when plugged in via `adb track-devices`.
 pub fn start_adb_watcher(port: u16, running: Arc<AtomicBool>) -> thread::JoinHandle<()> {
     thread::spawn(move || {
         let mut configured_devices: HashSet<String> = HashSet::new();
 
         while running.load(Ordering::Relaxed) {
-            match list_devices() {
-                Ok(current_devices) => {
-                    let current_set: HashSet<String> = current_devices.into_iter().collect();
+            let mut child = match Command::new("adb")
+                .arg("track-devices")
+                .stdout(Stdio::piped())
+                .stderr(Stdio::null())
+                .spawn()
+            {
+                Ok(child) => child,
+                Err(e) => {
+                    eprintln!("[adb] Failed to spawn adb track-devices: {}", e);
+                    thread::sleep(Duration::from_secs(2));
+                    continue;
+                }
+            };
 
-                    // Detect newly attached devices
-                    for serial in &current_set {
+            let stdout = match child.stdout.take() {
+                Some(s) => s,
+                None => {
+                    let _ = child.kill();
+                    thread::sleep(Duration::from_secs(2));
+                    continue;
+                }
+            };
+
+            let reader = BufReader::new(stdout);
+            for line_res in reader.lines() {
+                if !running.load(Ordering::Relaxed) {
+                    let _ = child.kill();
+                    return;
+                }
+
+                let line = match line_res {
+                    Ok(l) => l,
+                    Err(_) => break,
+                };
+
+                if let Some((serial, state)) = parse_track_device_line(&line) {
+                    if state == "device" {
                         if !configured_devices.contains(serial) {
                             match setup_adb_reverse(Some(serial), port) {
                                 Ok(()) => {
                                     println!("[adb] Reversed tcp:{} on device {}", port, serial);
-                                    configured_devices.insert(serial.clone());
+                                    configured_devices.insert(serial.to_string());
                                 }
                                 Err(e) => {
                                     eprintln!("[adb] Failed to reverse port on {}: {}", serial, e);
                                 }
                             }
                         }
+                    } else {
+                        configured_devices.remove(serial);
                     }
-
-                    // Remove unplugged devices
-                    configured_devices.retain(|s| current_set.contains(s));
-                }
-                Err(_) => {
-                    // ADB daemon may be restarting or unavailable; retry after backoff
                 }
             }
 
-            thread::sleep(Duration::from_secs(2));
+            let _ = child.kill();
+            let _ = child.wait();
+
+            if running.load(Ordering::Relaxed) {
+                thread::sleep(Duration::from_secs(1));
+            }
         }
     })
 }
@@ -134,5 +177,19 @@ mod tests {
     fn test_check_adb() {
         let ver = check_adb();
         assert!(ver.is_ok());
+    }
+
+    #[test]
+    fn test_parse_track_device_line() {
+        assert_eq!(
+            parse_track_device_line("emulator-5554\tdevice"),
+            Some(("emulator-5554", "device"))
+        );
+        assert_eq!(
+            parse_track_device_line("1234567890 offline"),
+            Some(("1234567890", "offline"))
+        );
+        assert_eq!(parse_track_device_line(""), None);
+        assert_eq!(parse_track_device_line("invalid"), None);
     }
 }

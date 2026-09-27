@@ -58,3 +58,21 @@ fn test_handshake_json() {
     assert_eq!(parsed.device_name, "Pixel 7");
     assert_eq!(parsed.level, 1);
 }
+
+#[test]
+fn test_skip_unknown_frame_type() {
+    let mut buffer = Vec::new();
+    // Unknown frame type 0x99 with 9-byte payload
+    buffer.push(0x99);
+    buffer.extend_from_slice(&9u32.to_be_bytes());
+    buffer.extend_from_slice(b"discardme");
+
+    // Followed by valid frame
+    let hello_frame = Frame::new(FrameType::Hello, b"{\"proto\":1}".to_vec());
+    write_frame(&mut buffer, &hello_frame).unwrap();
+
+    let mut cursor = Cursor::new(buffer);
+    let parsed = read_frame(&mut cursor).unwrap();
+    assert_eq!(parsed.frame_type, FrameType::Hello);
+    assert_eq!(parsed.payload, b"{\"proto\":1}");
+}

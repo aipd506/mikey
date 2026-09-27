@@ -17,8 +17,8 @@ Android
 
 PC
 - [x] Console binary (no tray yet): TCP listener, framing, handshake
-- [x] `adb.rs`: track devices, `adb reverse`
-- [x] Jitter buffer (fixed 20 ms) → virtual mic (VB-Cable on Windows, null-sink + remap-source on Linux)
+- [ ] `adb.rs`: track devices, `adb reverse`
+- [ ] Jitter buffer (fixed 20 ms) → virtual mic (VB-Cable on Windows, null-sink + remap-source on Linux)
 - [x] Logs `[connected] Pixel 7 via L1` / `[disconnected]`
 
 ## Phase 2 — The four levels, trust, and the real phone UI

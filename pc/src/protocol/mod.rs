@@ -115,31 +115,40 @@ impl MediaHeader {
 }
 
 pub fn read_frame<R: Read>(reader: &mut R) -> io::Result<Frame> {
-    let mut header = [0u8; 5];
-    reader.read_exact(&mut header)?;
+    loop {
+        let mut header = [0u8; 5];
+        reader.read_exact(&mut header)?;
 
-    let frame_type = FrameType::from_u8(header[0]).ok_or_else(|| {
-        Error::new(
-            ErrorKind::InvalidData,
-            format!("unknown frame type byte: 0x{:02x}", header[0]),
-        )
-    })?;
+        let len = u32::from_be_bytes(header[1..5].try_into().unwrap()) as usize;
+        if len > MAX_PAYLOAD_LEN {
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                format!("frame payload len {} exceeds max 4 MiB", len),
+            ));
+        }
 
-    let len = u32::from_be_bytes(header[1..5].try_into().unwrap()) as usize;
-    if len > MAX_PAYLOAD_LEN {
-        return Err(Error::new(
-            ErrorKind::InvalidData,
-            format!("frame payload len {} exceeds max 4 MiB", len),
-        ));
+        let frame_type = match FrameType::from_u8(header[0]) {
+            Some(ft) => ft,
+            None => {
+                let mut to_skip = len;
+                let mut discard_buf = [0u8; 4096];
+                while to_skip > 0 {
+                    let chunk = to_skip.min(discard_buf.len());
+                    reader.read_exact(&mut discard_buf[..chunk])?;
+                    to_skip -= chunk;
+                }
+                continue;
+            }
+        };
+
+        let mut payload = vec![0u8; len];
+        reader.read_exact(&mut payload)?;
+
+        return Ok(Frame {
+            frame_type,
+            payload,
+        });
     }
-
-    let mut payload = vec![0u8; len];
-    reader.read_exact(&mut payload)?;
-
-    Ok(Frame {
-        frame_type,
-        payload,
-    })
 }
 
 pub fn write_frame<W: Write>(writer: &mut W, frame: &Frame) -> io::Result<()> {

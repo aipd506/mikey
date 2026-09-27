@@ -13,7 +13,7 @@ These apply from Phase 1 onwards. They are not suggestions.
 9. **English everywhere.** Names, comments, commits.
 10. **Comments only where non-obvious.** Explain *why*, not *what*.
 11. **Phase 1 can be rough. Phase 2 cleans it. Later phases build on clean.**
-12. **`vibe/scratchpad.md` is the trash can.** Never put code in `vibe/`. Useful notes become code comments or edits to the brain (`vibe/`).
+12. **Never put code in `vibe/`.** Useful notes become code comments or edits to the brain (`vibe/`). Throwaway scratch notes should be kept local.
 13. **Keep it small.** `cargo bloat` before adding a crate; check APK size diff on every dependency change; verify [performance-budgets.md](performance-budgets.md) before closing a phase.
 14. **Test on real devices** ([test-matrix.md](test-matrix.md)).
 15. **User-facing text is short, calm and actionable.** "Tap Allow on your phone", not "ADB authorization failed (error 3)".
