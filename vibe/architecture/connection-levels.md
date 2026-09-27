@@ -79,7 +79,7 @@ The phone does **not** poll everything constantly. Probing is triggered by:
 | Network interface added/removed (`ConnectivityManager.NetworkCallback` + interface enumeration) | L2, L4 |
 | Bluetooth adapter on / bond change | L3 |
 | Current transport dropped | All levels below and above it |
-| Every 5 s while on L2–L4 and USB is plugged in | L1 only (localhost connect — negligible cost) |
+| While a USB cable to a computer is in and we're not on a USB level: every 1 s for the first 4 s (the PC's adb reverse takes a moment), then every 5 s | L1 (localhost connect) and a look for a tether interface (no traffic). Negligible cost. |
 
 ## Upgrade & downgrade (make-before-break)
 
