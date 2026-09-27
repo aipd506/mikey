@@ -9,5 +9,6 @@ object Palette {
     val iconOff = Color(0xFF3A3A3C)
     val micOn = Color(0xFF30D158)
     val statusOk = Color(0xFF30D158)
+    val statusWait = Color(0xFFFFD60A)
     val statusErr = Color(0xFFFF453A)
 }

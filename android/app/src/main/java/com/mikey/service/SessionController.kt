@@ -11,10 +11,12 @@ import com.mikey.protocol.MediaHeader
 import com.mikey.protocol.byePayload
 import com.mikey.protocol.heartbeatPayload
 import com.mikey.protocol.helloPayload
+import com.mikey.protocol.parseReject
 import com.mikey.protocol.parseWelcome
 import com.mikey.protocol.readFrame
 import com.mikey.protocol.writeFrame
 import com.mikey.protocol.writeMediaFrame
+import com.mikey.settings.PairedPc
 import com.mikey.settings.Settings
 import com.mikey.transport.TcpTransport
 import org.json.JSONException
@@ -25,6 +27,7 @@ import java.io.DataOutputStream
 import java.io.IOException
 import java.net.ProtocolException
 import java.net.Socket
+import java.net.SocketTimeoutException
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.TimeUnit
 
@@ -33,10 +36,9 @@ import java.util.concurrent.TimeUnit
  * backoff when the link drops. The network runs on its own thread; the capture thread only drops
  * frames into a small queue, so recording never waits on the network.
  *
- * [onLink] gets the connected level (1 = USB, 4 = Wi-Fi), or null when not connected.
- * It is called on the session thread.
+ * [onLink] reports every change of [Link]. It is called on the session thread.
  */
-class SessionController(context: Context, private val onLink: (level: Int?) -> Unit) {
+class SessionController(context: Context, private val onLink: (Link) -> Unit) {
     private val settings = Settings(context)
     private val frames = ArrayBlockingQueue<AudioFrame>(QUEUE_FRAMES)
     private val capture = AudioCapture(context) { frames.offerDroppingOldest(it) }
@@ -70,33 +72,68 @@ class SessionController(context: Context, private val onLink: (level: Int?) -> U
                     failures = 0
                     stream(socket, input, output, transport.level)
                 }
+            } catch (e: RejectedException) {
+                Log.i(TAG, "PC refused us: ${e.reason}")
+                when (rejectPolicy(e.reason)) {
+                    Reaction.RETRY -> Unit
+                    Reaction.FORGET_AND_RETRY -> settings.forgetPc()
+                    Reaction.GIVE_UP -> {
+                        onLink(Link.Refused(e.reason))
+                        waitUntilStopped()
+                        return
+                    }
+                }
+                if (running) pause(REJECT_RETRY_MS)
+                continue
             } catch (e: IOException) {
                 Log.i(TAG, "No link to the PC: $e")
+                onLink(Link.Searching)
             }
             if (running) pause(reconnectDelayMs(failures++))
         }
     }
 
+    /** Sends HELLO and reads the PC's answer. Returns once we're accepted, throws otherwise. */
     private fun handshake(output: DataOutputStream, input: DataInputStream, level: Int) {
-        output.writeFrame(FrameType.HELLO, helloPayload(settings.deviceId, Build.MODEL, level))
+        val paired = settings.pairedPc
+        output.writeFrame(FrameType.HELLO, helloPayload(settings.deviceId, Build.MODEL, level, paired?.token))
         output.flush()
+        var approvalDeadlineMs = 0L
         while (true) {
-            val frame = input.readFrame()
-            if (frame.type != FrameType.WELCOME) continue
-            val welcome = try {
-                parseWelcome(frame.payload)
-            } catch (e: JSONException) {
-                throw ProtocolException("Bad WELCOME: ${e.message}")
+            val frame = try {
+                input.readFrame()
+            } catch (e: SocketTimeoutException) {
+                // The PC says nothing while it asks its user. Keep waiting, up to its 60 s prompt limit.
+                if (!running || approvalDeadlineMs == 0L || SystemClock.elapsedRealtime() >= approvalDeadlineMs) throw e
+                continue
             }
-            Log.i(TAG, "Connected to ${welcome.pcName} on level $level")
-            return
+            when (frame.type) {
+                FrameType.PENDING -> {
+                    approvalDeadlineMs = SystemClock.elapsedRealtime() + APPROVAL_WAIT_MS
+                    onLink(Link.Waiting)
+                }
+                FrameType.WELCOME -> {
+                    val welcome = try {
+                        parseWelcome(frame.payload)
+                    } catch (e: JSONException) {
+                        throw ProtocolException("Bad WELCOME: ${e.message}")
+                    }
+                    if (paired?.id != welcome.pcId || paired.token != welcome.token) {
+                        settings.pairedPc = PairedPc(welcome.pcId, welcome.pcName, welcome.token)
+                    }
+                    Log.i(TAG, "${if (welcome.resumed) "Resumed with" else "Connected to"} ${welcome.pcName} on level $level")
+                    return
+                }
+                FrameType.REJECT -> throw RejectedException(parseReject(frame.payload))
+                else -> Unit // Not for us. Unknown frames are skipped, as the spec says.
+            }
         }
     }
 
     /** Sends audio and heartbeats until stopped (then says BYE), or throws when the link fails. */
     private fun stream(socket: Socket, input: DataInputStream, output: DataOutputStream, level: Int) {
         frames.clear() // Audio queued while we were offline is too old to play now.
-        if (running) onLink(level)
+        if (running) onLink(Link.Live(level))
         Thread({ receive(input, socket) }, "mikey-receive").start()
         try {
             var lastHeartbeatMs = 0L
@@ -126,7 +163,7 @@ class SessionController(context: Context, private val onLink: (level: Int?) -> U
             }
             sayBye(output)
         } finally {
-            onLink(null)
+            onLink(Link.Searching)
             socket.close()
         }
     }
@@ -153,6 +190,11 @@ class SessionController(context: Context, private val onLink: (level: Int?) -> U
         }
     }
 
+    /** After a final refusal we don't try again by ourselves, so the PC's user isn't asked over and over. */
+    private fun waitUntilStopped() {
+        while (running) pause(Long.MAX_VALUE)
+    }
+
     private fun pause(ms: Long) {
         try {
             Thread.sleep(ms)
@@ -168,7 +210,28 @@ class SessionController(context: Context, private val onLink: (level: Int?) -> U
         const val QUEUE_FRAMES = 20
         const val HEARTBEAT_MS = 2_000L
         const val POLL_MS = 100L
+
+        /** The PC gives its user 60 s to answer the prompt. A little longer, so we never give up first. */
+        const val APPROVAL_WAIT_MS = 65_000L
+        const val REJECT_RETRY_MS = 5_000L
     }
+}
+
+/** The PC answered HELLO with REJECT. */
+private class RejectedException(val reason: String) : Exception("PC said $reason")
+
+internal enum class Reaction { RETRY, FORGET_AND_RETRY, GIVE_UP }
+
+/**
+ * What to do about a REJECT. `timeout` (nobody answered the PC's prompt) and `busy` (another phone
+ * is streaming) can clear up by themselves, so ask again after a while. `bad_token` means our pairing
+ * is stale: drop it and introduce ourselves as new. Anything else, like `denied` or `version`, is
+ * final until the user turns the mic off and on.
+ */
+internal fun rejectPolicy(reason: String): Reaction = when (reason) {
+    "timeout", "busy" -> Reaction.RETRY
+    "bad_token" -> Reaction.FORGET_AND_RETRY
+    else -> Reaction.GIVE_UP
 }
 
 /** Reconnect waits 0.5 s, 1 s, 2 s, 4 s, then 5 s from then on. */

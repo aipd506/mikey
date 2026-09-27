@@ -4,18 +4,25 @@
 
     <string name="notification_channel">Mic and camera</string>
     <string name="notification_mic_on_searching">Mic on · Looking for PC</string>
+    <string name="notification_mic_on_waiting">Mic on · Waiting for PC approval</string>
     <string name="notification_mic_on_usb">Mic on · USB</string>
     <string name="notification_mic_on_wifi">Mic on · Wi-Fi</string>
+    <string name="notification_mic_on_denied">Mic on · PC said no</string>
+    <string name="notification_mic_on_version">Mic on · Mikey versions don\'t match</string>
+    <string name="notification_mic_on_refused">Mic on · PC refused</string>
     <string name="notification_stop">Stop</string>
 
     <string name="cd_camera">Camera</string>
     <string name="cd_mic_off">Microphone off</string>
     <string name="cd_mic_on">Microphone on</string>
     <string name="cd_status_connected">Connected to PC</string>
+    <string name="cd_status_waiting">Waiting for PC approval</string>
+    <string name="cd_status_refused">PC refused</string>
     <string name="cd_status_no_pc">No PC</string>
 
     <string name="debug_pc_address_title">PC address</string>
     <string name="debug_pc_address_message">For testing over Wi-Fi. Leave it empty to use USB. Applies the next time you turn the mic on.</string>
     <string name="debug_pc_address_hint" translatable="false">192.168.1.20</string>
     <string name="debug_pc_address_save">Save</string>
+    <string name="debug_forget_pc">Forget %1$s</string>
 </resources>

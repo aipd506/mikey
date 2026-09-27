@@ -12,8 +12,7 @@ import com.mikey.R
 /** The notification Android requires while MikeyService runs. */
 class Notifier(private val service: Service) {
 
-    /** [level] is where the mic is going: 1 = USB, 4 = Wi-Fi, null = still looking for the PC. */
-    fun build(level: Int?): Notification {
+    fun build(link: Link): Notification {
         service.getSystemService(NotificationManager::class.java).createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
@@ -36,7 +35,7 @@ class Notifier(private val service: Service) {
         return Notification.Builder(service, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_mic)
             .setContentTitle(service.getString(R.string.app_name))
-            .setContentText(service.getString(textFor(level)))
+            .setContentText(service.getString(textFor(link)))
             .setContentIntent(open)
             .setOngoing(true)
             .addAction(Notification.Action.Builder(null, service.getString(R.string.notification_stop), stop).build())
@@ -44,14 +43,19 @@ class Notifier(private val service: Service) {
     }
 
     /** Replaces the notification's text. Shows nothing if the user turned notifications off. */
-    fun show(level: Int?) {
-        service.getSystemService(NotificationManager::class.java).notify(ID, build(level))
+    fun show(link: Link) {
+        service.getSystemService(NotificationManager::class.java).notify(ID, build(link))
     }
 
-    private fun textFor(level: Int?) = when (level) {
-        1 -> R.string.notification_mic_on_usb
-        4 -> R.string.notification_mic_on_wifi
-        else -> R.string.notification_mic_on_searching
+    private fun textFor(link: Link) = when (link) {
+        Link.Searching -> R.string.notification_mic_on_searching
+        Link.Waiting -> R.string.notification_mic_on_waiting
+        is Link.Live -> if (link.level == 1) R.string.notification_mic_on_usb else R.string.notification_mic_on_wifi
+        is Link.Refused -> when (link.reason) {
+            "denied" -> R.string.notification_mic_on_denied
+            "version" -> R.string.notification_mic_on_version
+            else -> R.string.notification_mic_on_refused
+        }
     }
 
     companion object {

@@ -26,6 +26,8 @@ PC
 **Goal:** Mikey finds the PC by itself on every level and upgrades/downgrades automatically.
 **Done when:** with the same phone, you can go Wi‑Fi → plug in (USB) → unplug → turn Wi‑Fi off (Bluetooth) during a single call and the other person keeps hearing you, with only brief blips.
 
+> Order on Android: every feature first, the full UI last. Until then the app keeps its plain Phase 1 screen, with debug-only controls where a feature needs input.
+
 Android
 - [ ] Full UI per [phone-ux.md](phone-ux.md) (split halves, chevron + drawer, status dot 3 colors, rotation behavior)
 - [ ] Settings persistence per [phone-ux.md](phone-ux.md)
@@ -34,7 +36,7 @@ Android
 - [ ] Opus encoding on L3/L4 (96 kbps / 10 ms on Wi‑Fi, 32–48 kbps / 20 ms on Bluetooth); AAudio low-latency capture
 - [ ] Bluetooth transport (bonded computers only, cached MAC)
 - [ ] Notification: live state text, soft mute/unmute, Stop
-- [ ] Pairing token storage; PENDING/REJECT handling; "Forget"
+- [x] Pairing token storage; PENDING/REJECT handling; "Forget"
 - [ ] USB-connected-but-no-link tethering hint
 
 PC
