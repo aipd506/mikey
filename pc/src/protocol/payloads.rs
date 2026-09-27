@@ -33,3 +33,39 @@ pub struct RejectPayload {
 pub struct ByePayload {
     pub reason: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct ControlAudioPayload {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ns: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ns_strength: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub aec: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gate_db: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub muted: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct ControlVideoPayload {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub on: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lens: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub preview: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub aspect: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fps: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct ControlPayload {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub audio: Option<ControlAudioPayload>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub video: Option<ControlVideoPayload>,
+}

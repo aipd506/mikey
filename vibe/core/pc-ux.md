@@ -20,75 +20,52 @@
 ### Why a Flyout instead of a Native OS Context Menu?
 Standard Windows context menus (`muda`/Win32 popup menus) are rigid, visually dated, and limited strictly to plain text and checkmarks. They cannot host rich interactive controls: live audio VU meters, volume/gain sliders, embedded camera preview thumbnails, real-time connection telemetry, or inline action cards (e.g. join approvals and driver install prompts).
 
-The Mikey Flyout is an anchored companion dialog (~350 px wide, dynamic height ~440–540 px) crafted with Mikey’s sleek dark design language (`#000000` / `#111111`, `#2C2C2E` dividers, `#FFFFFF` text, `#8E8E93` subtext).
+The Mikey Flyout is an ultra-compact, minimal companion dialog (~300 px wide, dynamic height ~215–330 px) crafted with Mikey’s sleek dark design language (`#000000` / `#111111`, `#2C2C2E` dividers, `#FFFFFF` text, `#8E8E93` subtext). It prioritizes visual density, icons over verbose text, an integrated VU meter, and persistent camera preview controls. Common settings (noise suppression, echo cancellation, noise gate, mute, lens flip, preview) are bidirectional and kept in sync between Android and PC via `0x04 CONTROL` frames.
 
 ### Visual Layout & Components
 
 ```text
 ┌────────────────────────────────────────────────────────┐
-│  Mikey                          [L1 USB 480M]  ● Live  │ ← Status & level badge
-│  Pixel 7 Pro                    12 ms · 96 kbps · 0%   │ ← Telemetry
+│  Mikey                  Pixel 7 Pro  [L1 USB]  ● Live  │ ← Header: device & status pill
 ├────────────────────────────────────────────────────────┤
-│  MICROPHONE                                            │
-│  ● Mic Streaming Active                     [Mute]     │ ← Streaming state
-│  Level  [██████████████░░░░░░░░] -14 dB                │ ← Live VU meter
-│  Gain   [───────●──────────────] 100%                  │ ← Volume/gain slider
-│                                                        │
-│  DSP: [✓ Noise Suppress] [✓ Echo Cancel] [✓ Noise Gate]│ ← DSP toggles
-│  Sink: VB-Cable (Ready ✓)       Echo Ref: Speakers ▼   │ ← Audio routing
+│  🎤 Microphone                              [ Mute ]   │ ← Mic row + mute toggle
+│  [██████████████████░░░░░░░░░░░░░] -12 dB              │ ← Integrated live VU meter
 ├────────────────────────────────────────────────────────┤
-│  CAMERA                                                │
-│  ● Camera Live — 1080p @ 30fps              [Pop Out]  │ ← Pop-out button
+│  📷 Camera                      [ Flip ⟲ ]  [ Preview ]│ ← Camera row: flip + preview
 │  ┌──────────────────────────────────────────────────┐  │
-│  │                                                  │  │
-│  │               [Live Video Preview]               │  │ ← 16:9 embedded preview
-│  │                                                  │  │
+│  │               [Live Video Preview]               │  │ ← 16:9 embedded preview (when live)
 │  └──────────────────────────────────────────────────┘  │
-│  Driver: softcam (Ready ✓)             Flip: Front [↻] │ ← Driver & camera flip
 ├────────────────────────────────────────────────────────┤
-│  DEVICES                                               │
-│  ● Pixel 7 Pro (Active)                   [Disconnect] │ ← Active device
-│  ○ Galaxy Tab S8 (Paired)                 [Connect]    │ ← Device switching
+│  DSP: 🔊 [───●─────] NS      [ AEC ✓ ]    [ Gate ]     │ ← Compact visual DSP toggles
 ├────────────────────────────────────────────────────────┤
-│  ▸ Advanced Settings                                   │ ← Collapsible drawer
-│    Ask before joining                              ☐   │
-│    Start with computer                             ☑   │
-│    Open app on phone when USB plugged in           ☑   │
-│    Connection levels: L1 ☑  L2 ☑  L3 ☑  L4 ☑          │
-│    Trust new Wi-Fi devices automatically           ☐   │
-├────────────────────────────────────────────────────────┤
-│  Mikey v1.0.0             [Open Logs]    [Quit Mikey]  │ ← Footer
+│  Mikey v1.0.0                  [ 📁 ]   [ ⚡ ]   [ ⏻ ]  │ ← Footer: logs, disconnect, quit
 └────────────────────────────────────────────────────────┘
 ```
 
 ### Detailed Component Specifications
 
 #### A. Header & Connection Status
-- **Device Identity:** Name of the currently connected phone (e.g., `Pixel 7 Pro`).
-- **Connection Badge:** Pill badge displaying active transport level (`L1 USB`, `L2 Tether`, `L3 BT`, `L4 Wi-Fi`) and link rate.
-- **Status Dot:** `#30D158` (green = live stream), `#FFD60A` (amber = waiting / handshake), `#8E8E93` (grey = idle).
-- **Live Stream Telemetry:** Displays real-time round-trip latency (`ms`), audio/video bitrate (`kbps`), and packet loss percentage (`0.0%`).
-- **Quick Action:** [Disconnect] button to immediately release the session.
+- **Device Identity:** Name of the currently connected phone (e.g., `Pixel 7 Pro` or `Waiting for phone...`).
+- **Connection Badge:** Pill badge displaying active transport level (`L1 USB`, `L2 Tether`, `L3 BT`, `L4 Wi-Fi`, or `IDLE`) with its matching transport icon (`\u{E88E}` USB, `\u{E702}` BT, `\u{E701}` Wi-Fi).
+- **Status Dot:** `#30D158` (green = live stream), `#FFD60A` (amber = waiting / handshake), `#3A3A3C` (dimmed grey = idle).
 
 #### B. Microphone & Audio Controls
-- **Streaming State:** Shows whether the phone microphone is actively sending audio.
-- **Live Audio VU Meter:** Horizontal meter bar with peak hold, updating at 30 fps directly from the decoded audio pipeline (`#30D158` normal, `#FFD60A` peak, `#FF453A` clipping).
-- **Output Gain Slider:** Smooth slider controlling software gain (0% to 150%) sent to the virtual microphone, alongside a quick soft-mute button.
-- **Audio DSP Quick-Toggles:**
-  - `Noise Suppression`: Toggles pure-Rust `RNNoise` filter.
-  - `Echo Cancellation`: Toggles `SpeexDSP` acoustic echo cancellation.
-  - `Noise Gate`: Toggles threshold gating.
-- **Audio Routing & Drivers:**
-  - Virtual Microphone status: `VB-Cable: Ready ✓` (or an amber `[Install VB-Cable...]` button if missing).
-  - Echo Reference Device: Dropdown selecting the PC speaker output monitored for echo cancellation.
+- **Streaming State:** Microphone glyph (`\u{E720}`) dynamically highlights in `#30D158` when active, `#FF453A` when muted, and `#3A3A3C` when idle.
+- **Mute Action:** Compact pill button (`[ Mute ]` / `[ Unmute ]` with `\u{E74F}`) controlling soft-mute, synchronized bidirectionally with the phone notification and UI.
+- **Integrated Live VU Meter:** Direct 4 px horizontal bar immediately under the mic label with instant attack and smooth decay (`#30D158` normal, `#FFD60A` peak, `#FF453A` clipping).
 
 #### C. Camera & Video Controls
-- **Streaming State:** Shows whether video capture is active from the phone.
-- **Resolution & FPS:** Badge displaying current capture format (e.g. `1080p @ 30fps` or `720p @ 30fps`).
-- **Embedded 16:9 Preview:** Live video frame decoded and blitted directly inside the flyout card. Video decode only runs while the flyout or detached preview window is visible.
-- **Pop-Out Action:** [Pop Out] button detaches the preview into the floating, movable window (§ 7.5).
-- **Camera Flip Request:** Sends a control frame (`0x04 CONTROL`) to switch front/back lens on the phone.
-- **Virtual Camera Driver:** `softcam: Ready ✓` (or an amber `[Install softcam...]` button if driver not registered).
+- **Persistent Camera Option:** Even when camera video is off/idle, a visual **`[ Preview ]`** button is always accessible to open/close the detached floating preview window (§ 7.5).
+- **Lens Flip Control:** Visual **`[ Flip ⟲ ]`** button (`\u{E72C}`) sends a `0x04 CONTROL` frame to flip the phone's front ↔ back lens seamlessly.
+- **Embedded 16:9 Thumbnail:** When video streaming is active and the detached window is not popped out, the flyout expands dynamically from ~215 px to ~330 px to blit the live 16:9 video frame.
+- **Camera Indicator:** Camera glyph (`\u{E714}`) illuminates in vivid `#0A84FF` when streaming is active.
+
+#### D. Audio DSP Quick-Toggles & Bidirectional Sync
+- **Noise Suppression (`RNNoise`):** Compact slider/toggle adjusting software suppression strength.
+- **Echo Cancellation (`SpeexDSP AEC`):** Pill toggle (`[ AEC ✓ ]`) controlling loopback echo removal.
+- **Noise Gate:** Pill toggle (`[ Gate ]`) suppressing background room hiss.
+- **Bidirectional Settings Sync:** All audio DSP and video settings are shared common settings synchronized via `0x04 CONTROL` frames — changing them on the PC updates the phone, and changing them in the phone drawer updates the PC flyout.
+
 
 #### D. Device Switcher & Approvals
 - **Active & Paired Devices:** Lists currently active device and previously paired devices stored in `config.toml`.

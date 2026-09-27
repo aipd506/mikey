@@ -24,7 +24,7 @@ Receivers **reject any length > 4 MiB** and close the connection (protects again
 | `0x01` | AUDIO | phone → PC | media header + PCM s16le **or** Opus packet |
 | `0x02` | VIDEO | phone → PC | media header + one JPEG image |
 | `0x03` | HEARTBEAT | both | 8-byte send timestamp (µs) — echoed by PC for RTT |
-| `0x04` | CONTROL | both | JSON, e.g. `{"audio":{"ns":true,"ns_strength":0.8,"aec":true,"gate_db":-45}}`, `{"video":{"on":true,"w":1280,"h":720}}` |
+| `0x04` | CONTROL | both | JSON: bidirectional common settings sync (audio: ns, ns_strength, aec, gate_db, muted; video: on, lens, preview, aspect, fps) |
 | `0x05` | BYE | both | JSON: `reason` — clean shutdown, no timeout wait |
 
 ### JSON field formats
@@ -35,6 +35,41 @@ Receivers **reject any length > 4 MiB** and close the connection (protects again
 - `caps` (phone): list of what the phone can send right now. `["audio"]` in Phase 1, `["audio", "video"]` from Phase 3.
 - Receivers ignore JSON fields and frame types they don't know, so either side can add new ones without breaking the other.
 - `resume` is not used yet. The PC resumes a held session by `device_id` within 30 s of a drop and answers `resumed: true`.
+
+### Control Frame Schema (`0x04 CONTROL`)
+
+Both phone and PC emit and receive `0x04 CONTROL` frames to keep common user settings synchronized in real-time. Payload is a JSON object with optional `audio` and `video` sections. Updates are partial and idempotent:
+
+```json
+{
+  "audio": {
+    "ns": true,
+    "ns_strength": 0.8,
+    "aec": true,
+    "gate_db": -45.0,
+    "muted": false
+  },
+  "video": {
+    "on": true,
+    "lens": "front",
+    "preview": true,
+    "aspect": "16:9",
+    "fps": 30
+  }
+}
+```
+
+Fields:
+- `audio.ns`: boolean, toggles RNNoise noise suppression on PC.
+- `audio.ns_strength`: float 0.0–1.0, suppression aggressiveness.
+- `audio.aec`: boolean, toggles SpeexDSP acoustic echo cancellation.
+- `audio.gate_db`: float -60.0 to -20.0, noise gate threshold (or null/absent for off).
+- `audio.muted`: boolean, soft-mute audio pipeline.
+- `video.on`: boolean, requests turning phone camera capture on/off.
+- `video.lens`: string, `"back"`, `"front"`, or `"flip"` (switch lens).
+- `video.preview`: boolean, whether preview window is active.
+- `video.aspect`: string, `"16:9"`, `"4:3"`, `"1:1"`.
+- `video.fps`: integer, `15` or `30`.
 
 ## Media header (inside AUDIO/VIDEO payloads)
 

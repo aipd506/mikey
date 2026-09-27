@@ -1,3 +1,4 @@
+mod decision;
 mod handshake;
 #[cfg(test)]
 mod tests;
@@ -7,8 +8,8 @@ pub use types::{
     ActiveSession, HandshakeOutcome, PendingRequest, PENDING_TIMEOUT, SESSION_HOLD_DURATION,
 };
 
-use crate::config::{generate_random_hex, Config};
-use crate::protocol::HelloPayload;
+use crate::config::Config;
+use crate::protocol::{ControlPayload, HelloPayload};
 use std::path::PathBuf;
 use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, Condvar, Mutex};
@@ -31,6 +32,7 @@ impl SessionManager {
                 config_path,
                 active_session: None,
                 pending_requests: std::collections::HashMap::new(),
+                pending_controls: Vec::new(),
             })),
             condvar: Arc::new(Condvar::new()),
             next_request_id: Arc::new(AtomicU64::new(1)),
@@ -67,66 +69,19 @@ impl SessionManager {
     }
 
     pub fn wait_for_decision(&self, request_id: u64, timeout: Duration) -> HandshakeOutcome {
+        decision::wait_for_decision_inner(&self.inner, &self.condvar, request_id, timeout)
+    }
+
+    pub fn queue_control(&self, payload: ControlPayload) {
         let mut inner = self.inner.lock().unwrap();
-        let deadline = Instant::now() + timeout;
-
-        loop {
-            if let Some(entry) = inner.pending_requests.get(&request_id) {
-                if let Some(allow) = entry.decision {
-                    let req = entry.request.clone();
-                    inner.pending_requests.remove(&request_id);
-
-                    if allow {
-                        let session_token = generate_random_hex(32);
-                        let now = Instant::now();
-                        inner.active_session = Some(ActiveSession {
-                            session_token: session_token.clone(),
-                            device_id: req.device_id.clone(),
-                            device_name: req.device_name.clone(),
-                            current_level: req.level,
-                            started_at: now,
-                            last_frame_at: now,
-                            transport_dropped_at: None,
-                        });
-
-                        inner.config.add_or_update_device(
-                            req.device_id,
-                            req.device_name,
-                            req.token.clone(),
-                            Some(req.level),
-                        );
-                        let _ = inner.config.save_to(&inner.config_path);
-
-                        return HandshakeOutcome::Accept {
-                            token: req.token,
-                            resumed: false,
-                            pc_id: inner.config.pc_id.clone(),
-                            pc_name: inner.config.pc_name.clone(),
-                            session_token,
-                        };
-                    } else {
-                        return HandshakeOutcome::Reject {
-                            reason: "denied".to_string(),
-                        };
-                    }
-                }
-            } else {
-                return HandshakeOutcome::Reject {
-                    reason: "denied".to_string(),
-                };
-            }
-
-            let now = Instant::now();
-            if now >= deadline {
-                inner.pending_requests.remove(&request_id);
-                return HandshakeOutcome::Reject {
-                    reason: "timeout".to_string(),
-                };
-            }
-
-            let remaining = deadline - now;
-            inner = self.condvar.wait_timeout(inner, remaining).unwrap().0;
+        if inner.active_session.is_some() {
+            inner.pending_controls.push(payload);
         }
+    }
+
+    pub fn take_pending_controls(&self) -> Vec<ControlPayload> {
+        let mut inner = self.inner.lock().unwrap();
+        std::mem::take(&mut inner.pending_controls)
     }
 
     pub fn resolve_pending(&self, request_id: u64, allow: bool) -> bool {

@@ -8,17 +8,17 @@ use crate::session::SessionManager;
 use crate::video::VideoPipeline;
 
 pub fn compute_flyout_height(session_mgr: &SessionManager, video_pipe: &VideoPipeline) -> i32 {
-    let mut h = if video_pipe.is_camera_on() {
+    let mut h = if video_pipe.is_camera_on() && !video_pipe.is_preview_visible() {
         FLYOUT_HEIGHT_EXPANDED
     } else {
         FLYOUT_HEIGHT_COLLAPSED
     };
     if !session_mgr.list_pending().is_empty() {
-        h += 38;
+        h += 32;
     }
     let (virt_ready, _) = crate::audio::sink::check_virtual_device_status();
     if !virt_ready {
-        h += 34;
+        h += 30;
     }
     h
 }

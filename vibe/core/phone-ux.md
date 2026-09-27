@@ -71,9 +71,9 @@ A bottom sheet that slides up to ~60% height. One scroll, no nested screens. Clo
 ```
 
 Notes:
-- Flip camera is **not** in the drawer; it is the on-screen button. The last used lens is remembered.
+- Flip camera is on the main screen button `[⟲]` and also triggered remotely from the PC flyout. The last used lens is remembered.
 - **All audio processing runs on the PC.** The phone only captures raw audio (and compresses it where the link needs it). This keeps the phone cool and battery-light, gives the echo canceller a clean signal, and makes quality identical on every phone brand.
-- These settings are sent to the PC over the control channel; the phone is the single place the user sets them. They are greyed out if the PC reports it can't do them.
+- **Bidirectional Common Settings:** All audio DSP and video controls (Noise suppression toggle & strength, Echo cancellation toggle, Noise gate threshold, Soft mute, Camera lens flip, Preview) are common settings. Modifying them on the phone transmits a `0x04 CONTROL` frame to the PC; modifying them on the PC flyout transmits a `0x04 CONTROL` frame to the phone. Both sides stay in exact sync. Settings are disabled or greyed out if either device lacks the capability.
 
 ## 6.4 Rotation behaviour
 

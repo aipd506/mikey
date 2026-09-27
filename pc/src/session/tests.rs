@@ -1,4 +1,5 @@
 use super::*;
+use crate::config::generate_random_hex;
 use crate::protocol::PROTO_VERSION;
 use std::thread;
 
