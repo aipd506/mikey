@@ -13,7 +13,7 @@
 | Automatic upgrade between levels | ✅ Feasible | Event-driven probing on the phone + make-before-break session handover ([connection-levels.md](../architecture/connection-levels.md)). |
 | Noise suppression | ✅ Feasible | RNNoise on the **PC** (`nnnoiseless`, pure Rust, ~1–2% of a core). The phone sends raw audio. "Threshold" is implemented as a noise gate. |
 | Echo cancellation | ⚠️ Feasible, **highest quality risk** | Must run on the **PC** (the echo comes from PC speakers; the phone can't hear the reference). Variable network latency and clock drift make AEC hard. Works best on USB. |
-| Ask-before-join + tray prompt | ✅ Feasible | Native OS notification with Allow/Deny; tray menu fallback. |
+| Ask-before-join + tray prompt | ✅ Feasible | Native OS notification with Allow/Deny; tray flyout card fallback. |
 | Phone settings persistence | ✅ Trivial | `SharedPreferences`. |
 | Persistent notification while minimized | ✅ Required anyway | Android foreground service. |
 | Swipe-away from Recents kills connection | ✅ Feasible | `stopWithTask` + `onTaskRemoved()`. A few OEM skins behave oddly; tested per device. |
@@ -31,7 +31,7 @@
 These are real problems in PRD v0 that would have caused bugs or blocked features:
 
 1. **"Daemon as a Windows service / system-wide systemd unit" does not work for this app.** Windows services run in session 0: they cannot show a tray icon or notifications, and they don't have the user's audio context. On Linux, PulseAudio/PipeWire are per-user, so a system-level unit cannot reach the user's audio server. → **Mikey for PC is now a per-user tray app** that autostarts at login (HKCU `Run` key on Windows, XDG autostart on Linux). No admin rights needed for the app itself.
-2. **"No UI on the PC" conflicts with ask-before-join and preview.** → A minimal tray menu + one tiny preview window. Still no main window.
+2. **"No UI on the PC" conflicts with rich controls, ask-before-join and preview.** → A compact, anchored tray flyout companion app (a borderless dialog positioned directly adjacent to the tray icon). Provides interactive controls (live VU meter, volume sliders, DSP toggles, device switcher, embedded preview) with zero persistent taskbar clutter and light-dismiss on blur.
 3. **USB tethering subnet is not fixed.** Many Android versions randomize the tether subnet. → Discovery over the tether interface instead of assuming `192.168.42.1`.
 4. **Opus over TCP does not "handle packet loss gracefully".** TCP never shows loss to the app; it shows *delay*. Opus' loss concealment only helps over UDP. → v1 uses TCP everywhere with a latency cap (stale audio is dropped at the PC); an optional UDP media path for Wi‑Fi is planned ([wire-protocol.md](../architecture/wire-protocol.md)).
 5. **mDNS via `NsdManager` can't be pinned to an interface** (needed for tether vs. Wi‑Fi). → Replaced with a tiny UDP broadcast beacon that works identically on every IP interface and removes the `mdns-sd` dependency.

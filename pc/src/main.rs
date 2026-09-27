@@ -1,9 +1,12 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 use mikey::audio::pipeline::JitterBuffer;
 use mikey::audio::{sink, test_tone};
 use mikey::config::Config;
 use mikey::protocol::PORT_TCP;
 use mikey::session::SessionManager;
 use mikey::transport::{adb, beacon, bt, tcp};
+use mikey::video::VideoPipeline;
 use std::env;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -13,11 +16,36 @@ use std::time::Duration;
 fn main() {
     let args: Vec<String> = env::args().collect();
     let test_mode = args.iter().any(|a| a == "--test-tone");
+    let keep_console = args.iter().any(|a| a == "--console" || a == "--test-tone");
+
+    // Hide and detach any console window immediately so Mikey runs silently in the tray
+    #[cfg(windows)]
+    if !keep_console {
+        unsafe {
+            #[link(name = "kernel32")]
+            extern "system" {
+                fn FreeConsole() -> i32;
+                fn GetConsoleWindow() -> usize;
+            }
+            #[link(name = "user32")]
+            extern "system" {
+                fn ShowWindow(hWnd: usize, nCmdShow: i32) -> i32;
+            }
+
+            let hwnd = GetConsoleWindow();
+            if hwnd != 0 {
+                ShowWindow(hwnd, 0); // SW_HIDE
+                FreeConsole();
+            }
+        }
+    }
 
     println!("=== Mikey PC (Multi-Transport Engine) ===");
 
     let running = Arc::new(AtomicBool::new(true));
     let jitter_buffer = Arc::new(JitterBuffer::new());
+    let video_pipeline = Arc::new(VideoPipeline::new());
+    let _video_handle = video_pipeline.start_pipeline_thread(Arc::clone(&running));
 
     // 1. Initialize configuration and session manager
     let config_path = Config::default_config_path();
@@ -42,14 +70,26 @@ fn main() {
         let _adb_handle = adb::start_adb_watcher(PORT_TCP, Arc::clone(&running));
     }
 
-    // 3. Initialize audio output device (VB-Cable / default output)
+    // 3. Check virtual microphone device status (setup is accessible anytime via flyout)
+    #[cfg(windows)]
+    {
+        let (virt_ready, _) = sink::check_virtual_device_status();
+        let is_branded = sink::is_mikey_branded();
+        if !virt_ready || !is_branded {
+            println!(
+                "[mikey] Note: Virtual microphone not yet configured as 'Mikey Mic'. Setup available via flyout companion."
+            );
+        }
+    }
+
+    // 4. Initialize audio output device (Mikey Audio Bridge / VB-Cable / default output)
     let _audio_stream = match sink::find_output_device() {
         Ok((device, name, is_vb_cable)) => {
             if is_vb_cable {
                 println!("[audio] Using virtual mic device: {}", name);
             } else {
                 println!(
-                    "[audio] VB-Cable not detected. Using fallback output: {}",
+                    "[audio] No virtual mic found. Using fallback output: {}",
                     name
                 );
             }
@@ -67,6 +107,20 @@ fn main() {
         }
         Err(e) => {
             eprintln!("[audio] Error finding output device: {}", e);
+            None
+        }
+    };
+
+    // 4b. Initialize AEC loopback reference stream (speaker sound cancellation)
+    let _loopback_stream = match sink::start_loopback_stream(Arc::clone(&jitter_buffer)) {
+        Ok(stream) => {
+            println!(
+                "[audio] AEC loopback reference stream active (speaker sound cancellation enabled)"
+            );
+            Some(stream)
+        }
+        Err(e) => {
+            eprintln!("[audio] Note: Loopback stream not available: {}", e);
             None
         }
     };
@@ -114,16 +168,21 @@ fn main() {
     let _tcp_handle = tcp::start_tcp_listener(
         listener,
         Arc::clone(&jitter_buffer),
+        Arc::clone(&video_pipeline),
         session_manager.clone(),
         Arc::clone(&running),
     );
 
     println!("[tcp] Listening on 0.0.0.0:{}", PORT_TCP);
 
-    // 7. Start System Tray icon & menu
+    // 7. Start System Tray icon, menu & flyout companion
     #[cfg(windows)]
-    let _tray_handle =
-        mikey::tray::start_tray_thread(session_manager.clone(), Arc::clone(&running));
+    let _tray_handle = mikey::tray::start_tray_thread(
+        session_manager.clone(),
+        Arc::clone(&video_pipeline),
+        Arc::clone(&jitter_buffer),
+        Arc::clone(&running),
+    );
 
     println!("[ready] Waiting for Mikey Android client to connect...");
     println!("[hint] Run with --test-tone to verify audio without a phone.");

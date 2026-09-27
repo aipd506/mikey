@@ -5,6 +5,7 @@
 - Renamed `PRD.md` → `MASTER.md`; added motto, empathy, principles, feasibility, risks, open decisions.
 - **Added the four connection levels** (USB debugging > USB tethering > Bluetooth > Wi‑Fi) with automatic upgrade/downgrade.
 - PC component changed from a boot service to a **per-user tray app** with a small menu, ask-before-join and preview window.
+- **PC UI upgraded to Tray Flyout Companion App** ([pc-ux.md](pc-ux.md)): Replaced the static, boring OS context menu with an anchored, borderless dialog window at the tray icon location, enabling real-time audio VU metering, volume sliders, DSP switches, device switcher, inline join approvals, and embedded 16:9 preview.
 - Replaced mDNS with a UDP beacon; removed the hardcoded `192.168.42.x` assumption.
 - Replaced OBS Virtual Camera with softcam; Linux mic is now a proper virtual source.
 - Protocol: added handshake, tokens, PENDING/REJECT/BYE, media header (seq + timestamp), frame size limit; heartbeat 2 s / timeout 6 s.

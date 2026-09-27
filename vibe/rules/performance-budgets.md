@@ -6,7 +6,8 @@ These are acceptance criteria, checked before every phase is closed.
 |---|---|
 | APK size (per ABI) | ≤ 6 MB |
 | `mikey` binary | ≤ 10 MB (excluding bundled `adb`) |
-| PC idle RAM (tray, no phone) | ≤ 15 MB |
+| PC idle RAM (tray, flyout closed) | ≤ 15 MB |
+| PC active RAM (flyout open with preview) | ≤ 30 MB |
 | PC idle CPU | ~0% (no polling loops; event/blocking only) |
 | PC CPU streaming mic + 720p30 camera + AEC | ≤ 5% of one modern core |
 | Phone battery, mic only, screen off | ≤ 4% per hour (reference: mid-range phone) |

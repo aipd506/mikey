@@ -9,9 +9,9 @@ The `vibe/` directory is the single source of truth for the Mikey project. It co
 
 ## Current Status
 
-- **Phase:** 2 — The four levels, trust, and the real phone UI (Checklist: [core/roadmap.md](core/roadmap.md)).
+- **Phase:** 2 (Android) / Phases 1–4 complete (PC) — Audio, Video, DSP, Flyout UI, and Installers locked in (Checklist: [core/roadmap.md](core/roadmap.md)).
 - **Android (`android/`):** Starter project with Gradle (Kotlin DSL, version catalog), Jetpack Compose, package `com.mikey`, min SDK 26. Builds with `./gradlew assembleDebug`.
-- **PC (`pc/`):** Multi-transport tray app (`mikey`). TCP :7653, UDP beacon :7654, BT RFCOMM, SessionManager, Opus decoding, adaptive jitter buffer, drift resampler, tray menu, installers.
+- **PC (`pc/`):** Complete (Phases 1–4). Multi-transport tray app (`mikey`). TCP :7653, UDP beacon :7654, BT RFCOMM, SessionManager, Opus/PCM decoding, adaptive jitter buffer, drift resampler, RNNoise noise suppression, SpeexDSP AEC loopback cancellation, camera pipeline (JPEG decode, letterboxing, vcam, pop-out preview), Win32 GDI flyout companion app, and Inno Setup / Linux packaging installers. All modules <= 175 lines.
 - **Next immediate step:** Android Phase 1 & 2 implementation (UI, MikeyService, AAudio/Opus capture, TransportManager).
 
 ---
@@ -30,7 +30,7 @@ vibe/
 │   ├── scope.md           # Explicit in-scope and out-of-scope feature boundaries
 │   ├── user-journeys.md   # User flows: first-run, everyday connection, mid-call upgrade
 │   ├── phone-ux.md        # Android interface: split halves, gestures, drawer, notifications
-│   ├── pc-ux.md           # PC interface: tray icon, menu, join prompts, preview window
+│   ├── pc-ux.md           # PC interface: tray icon, companion flyout app, join prompts, preview window
 │   ├── roadmap.md         # The 5 phases with checklists and completion criteria
 │   ├── risks.md           # Risk register and concrete mitigations
 │   ├── open-decisions.md  # Recorded architectural choices & rationale
@@ -84,7 +84,7 @@ vibe/
 | [scope.md](core/scope.md) | In and out of scope for v1.0 | Before adding anything new |
 | [user-journeys.md](core/user-journeys.md) | First setup, first connection per level, daily use, mid-call upgrade | Designing a flow |
 | [phone-ux.md](core/phone-ux.md) | Phone layout, states, settings drawer, rotation, notification & lifecycle, saved settings | Any Android UI or service work |
-| [pc-ux.md](core/pc-ux.md) | Tray icon & menu, ask-before-join, preview, PC notifications, config file | Any PC UI work |
+| [pc-ux.md](core/pc-ux.md) | Tray icon & anchored flyout companion app, ask-before-join, preview, PC notifications, config file | Any PC UI work |
 | [roadmap.md](core/roadmap.md) | Phases 1–5 with checklists | Picking the next task |
 | [risks.md](core/risks.md) | Risk register | Planning a phase |
 | [open-decisions.md](core/open-decisions.md) | Decisions the owner may revisit | Before changing a decision |

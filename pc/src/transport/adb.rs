@@ -6,9 +6,20 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
+#[inline]
+fn new_adb_command() -> Command {
+    let mut cmd = Command::new("adb");
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    cmd
+}
+
 /// Verifies that the adb binary is accessible and returns its version string.
 pub fn check_adb() -> io::Result<String> {
-    let output = Command::new("adb")
+    let output = new_adb_command()
         .arg("version")
         .output()
         .map_err(|e| Error::new(ErrorKind::NotFound, format!("adb binary not found: {}", e)))?;
@@ -25,7 +36,7 @@ pub fn check_adb() -> io::Result<String> {
 
 /// Lists serial numbers of all authorized connected devices ("device" status).
 pub fn list_devices() -> io::Result<Vec<String>> {
-    let output = Command::new("adb")
+    let output = new_adb_command()
         .arg("devices")
         .output()
         .map_err(|e| Error::new(ErrorKind::NotFound, format!("adb failed: {}", e)))?;
@@ -53,7 +64,7 @@ pub fn list_devices() -> io::Result<Vec<String>> {
 /// Sets up `adb reverse tcp:{port} tcp:{port}` for all connected authorized devices,
 /// or for a specific device serial if specified.
 pub fn setup_adb_reverse(serial: Option<&str>, port: u16) -> io::Result<()> {
-    let mut cmd = Command::new("adb");
+    let mut cmd = new_adb_command();
     if let Some(s) = serial {
         cmd.arg("-s").arg(s);
     }

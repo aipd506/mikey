@@ -6,6 +6,7 @@ use mikey::protocol::{
 };
 use mikey::session::SessionManager;
 use mikey::transport::tcp::{configure_stream, handle_client};
+use mikey::video::VideoPipeline;
 use std::net::{TcpListener, TcpStream};
 use std::sync::Arc;
 use std::thread;
@@ -17,6 +18,8 @@ fn test_end_to_end_streaming_and_handshake() {
 
     let jb = Arc::new(JitterBuffer::new());
     let jb_clone = Arc::clone(&jb);
+    let vp = Arc::new(VideoPipeline::new());
+    let vp_clone = Arc::clone(&vp);
 
     let mut temp_cfg = std::env::temp_dir();
     temp_cfg.push(format!("mikey_it_{}.toml", generate_random_hex(8)));
@@ -26,7 +29,7 @@ fn test_end_to_end_streaming_and_handshake() {
 
     let server_thread = thread::spawn(move || {
         let (stream, _) = listener.accept().expect("accept connection");
-        handle_client(stream, jb_clone, sm_clone);
+        handle_client(stream, jb_clone, vp_clone, sm_clone);
     });
 
     // Client connection
@@ -95,6 +98,8 @@ fn test_end_to_end_handover_with_session_hold() {
 
     let jb = Arc::new(JitterBuffer::new());
     let jb_clone = Arc::clone(&jb);
+    let vp = Arc::new(VideoPipeline::new());
+    let vp_clone = Arc::clone(&vp);
 
     let mut temp_cfg = std::env::temp_dir();
     temp_cfg.push(format!("mikey_it_ho_{}.toml", generate_random_hex(8)));
@@ -106,8 +111,9 @@ fn test_end_to_end_handover_with_session_hold() {
         for _ in 0..2 {
             let (stream, _) = listener.accept().expect("accept connection");
             let jb_inst = Arc::clone(&jb_clone);
+            let vp_inst = Arc::clone(&vp_clone);
             let sm_inst = sm_clone.clone();
-            handle_client(stream, jb_inst, sm_inst);
+            handle_client(stream, jb_inst, vp_inst, sm_inst);
         }
     });
 

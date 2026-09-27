@@ -28,9 +28,10 @@ No location, no storage, no contacts, no phone state.
 
 | Concern | Crate / API | Notes |
 |---|---|---|
-| Tray + menu | `tray-icon` + `muda` (Windows); `ksni` (Linux, pure D-Bus StatusNotifierItem — no GTK) | GNOME needs the AppIndicator extension (Ubuntu ships it); documented |
-| Notifications | `tauri-winrt-notification` (Windows, action buttons); `notify-rust` (Linux, actions) | Fallback: pending item in tray menu |
-| Preview window | `minifb` | Tiny software-blitted window |
+| Tray icon | `tray-icon` (Windows); `ksni` or `tray-icon` (Linux) | System tray notification area icon + click events |
+| Flyout UI (Mini-app) | `egui` + `eframe` (or borderless `winit` + `softbuffer`) | Native Rust GUI, zero webview/electron bloat, instant launch, < 20 MB RAM, dark theme |
+| Notifications | `tauri-winrt-notification` (Windows, action buttons); `notify-rust` (Linux, actions) | Fallback: interactive alert banner in tray flyout |
+| Preview window | Embedded in flyout or detached via `egui` / `minifb` | Live software blit of decoded JPEG frames |
 | Audio I/O (Windows) | `cpal` (WASAPI output + loopback capture) | |
 | Audio I/O (Linux) | `libpulse-simple-binding` (works on PipeWire via pipewire-pulse) + `pactl` for module setup | |
 | Opus | `opus-decoder` (pure Rust, RFC 8251) | Zero C/CMake build dependency; pure Rust safe decoder |

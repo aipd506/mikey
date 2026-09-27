@@ -1,3 +1,4 @@
+pub mod dsp;
 pub mod opus;
 pub mod pipeline;
 pub mod sink;

@@ -39,7 +39,8 @@
 │                             → virtual mic                                      │
 │  Video pipeline             demux → JPEG decode → scale/letterbox → virtual cam│
 │                                                     └→ preview window (opt.)   │
-│  Tray / UI                  tray icon + menu, notifications, preview window    │
+│  Tray / Flyout UI           tray icon + companion flyout dialog,               │
+│                             notifications, preview (embedded/pop-out)          │
 │  Config                     config.toml, trusted devices, logs                 │
 └────────────────────────────────────────────────────────────────────────────────┘
           │                                   │
@@ -66,7 +67,7 @@
 
 | Thread | Job |
 |---|---|
-| `main` | Tray event loop (must be the main thread on some platforms), preview window |
+| `main` | Tray & flyout event loop (main thread), flyout mini-app & preview rendering |
 | `tcp-accept` | Accepts TCP connections, hands each to a session reader thread |
 | `udp-beacon` | Answers discovery probes |
 | `bt-accept` | RFCOMM server accept loop |

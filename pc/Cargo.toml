@@ -10,6 +10,9 @@ toml = "0.8"
 cpal = "0.15"
 rubato = "0.15"
 opus-decoder = "0.1"
+zune-jpeg = "0.5"
+minifb = "0.28"
+nnnoiseless = { version = "0.5", default-features = false }
 
 [target.'cfg(windows)'.dependencies]
 tray-icon = "0.19"
