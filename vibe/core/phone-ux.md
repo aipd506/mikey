@@ -10,8 +10,8 @@ The screen is split into two equal halves. Positions never change — the layout
 │                                  │     (visible only when camera is on)
 │                                  │
 │           ( CAM ICON )           │  ← top half: camera
-│   (live preview fills this half  │     off  = dimmed outline icon on black
-│    when the camera is on)        │     on   = live preview + small filled icon
+│                                  │     off  = dimmed outline icon on black
+│                                  │     on   = filled icon + lens label (no video)
 │                                  │
 ├──────────────── ˄ ───────────────┤  ← chevron, centered on the split line
 │                                  │     tap → settings drawer
@@ -33,7 +33,7 @@ The screen is split into two equal halves. Positions never change — the layout
 
 | Element | Off | On | Unavailable |
 |---|---|---|---|
-| Camera half | Dimmed outline icon | Live preview (optional, see Advanced) + filled blue icon | Icon with a slash + one-line reason on tap (e.g. *"Camera isn't available over Bluetooth"*) |
+| Camera half | Dimmed outline icon | Filled blue icon + lens label (e.g. *"Back camera"*); the video shows only on the PC | Icon with a slash + one-line reason on tap (e.g. *"Camera isn't available over Bluetooth"*) |
 | Mic half | Dimmed outline icon | Filled green icon + level ring | Icon with slash + reason (e.g. permission denied) |
 | Status dot | — | Green = streaming path live | Red = no PC · Amber = waiting for PC approval |
 
@@ -59,7 +59,6 @@ A bottom sheet that slides up to ~60% height. One scroll, no nested screens. Clo
       Lossless audio on Wi-Fi   [ toggle ]  (off)  ← raw PCM instead of Opus
       Video quality             [Auto] [720p] [1080p]
       Frame rate                [Auto] [30] [15]
-      Show preview on phone     [ toggle ]  (on)   ← off saves battery
       Keep screen on            [ toggle ]  (off)
       Remember mic/camera state [ toggle ]  (off)  ← see § 6.6
       Connection levels         USB debugging ✓  USB tethering ✓  Bluetooth ✓  Wi-Fi ✓
@@ -80,7 +79,7 @@ Notes:
 
 - The activity is locked to portrait (`android:screenOrientation="portrait"`), so the layout never reflows and the activity is never recreated mid-stream.
 - An `OrientationEventListener` snaps a `rotation` value to 0/90/180/270 (with ~20° hysteresis to avoid flicker). All icons and the drawer's text container rotate by that value. Positions stay fixed.
-- Camera frames are rotated using the device orientation so the **PC always receives an upright image** regardless of how the phone is held. The phone preview matches.
+- Camera frames are rotated using the device orientation so the **PC always receives an upright image** regardless of how the phone is held.
 
 ## 6.5 Notification & lifecycle
 
@@ -109,7 +108,7 @@ Everything the user sets is saved immediately to `SharedPreferences` and restore
 | `audio.wifiLossless` | off |
 | `audio.aec` | on |
 | `audio.gateDb` | off |
-| `ui.preview` / `ui.keepScreenOn` | on / off |
+| `ui.keepScreenOn` | off |
 | `ui.rememberState` | off |
 | `levels.enabled` | all four |
 | `pc.lastId`, `pc.lastIp`, `pc.btAddress`, `pc.token` | — (learned) |

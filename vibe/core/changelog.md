@@ -14,3 +14,4 @@
 - Background blur/removal explicitly excluded.
 - Phone UI: chevron moved to the center split line; flip button top-left (opposite the status dot); amber waiting state; mic level ring; Advanced section; persistence table; notification actions and swipe-away behavior; Android 14+ FGS rules.
 - Added performance budgets, security section, test matrix and a 5-phase roadmap starting with the #1 priority level.
+- **No camera preview on the phone** (2026-09-27): the camera half shows a live state and lens label instead; the video is shown only on the PC.

@@ -37,7 +37,7 @@ frames → [Opus decode] → jitter buffer ──► drift resampler ──► A
 ## 13.2 Video
 
 **Phone:**
-- CameraX `ImageAnalysis` (YUV_420_888, `STRATEGY_KEEP_ONLY_LATEST` — never builds a backlog) + `Preview` (only if *Show preview on phone* is on).
+- CameraX `ImageAnalysis` only (YUV_420_888, `STRATEGY_KEEP_ONLY_LATEST`, so it never builds a backlog). No `Preview`: the phone never shows the video, it is shown on the PC.
 - Resolution from Aspect ratio + Quality: 16:9 → 1280×720 / 1920×1080; 4:3 → 960×720 / 1440×1080; 1:1 → center-cropped 720×720 / 1080×1080. Auto = 720p on Wi‑Fi, 1080p on USB.
 - Rotation applied so the PC always gets an upright image.
 - JPEG encode (quality 75 default, auto-lowered if the send queue backs up or the phone reports thermal throttling via `PowerManager` thermal status).

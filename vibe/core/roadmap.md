@@ -54,7 +54,7 @@ PC
 
 Android
 - [ ] CameraX capture → JPEG → VIDEO frames; KEEP_ONLY_LATEST
-- [ ] Camera half: live preview (toggleable), flip button (top-left, only when on)
+- [ ] Camera half: live state with lens label (no video on the phone), flip button (top-left, only when on)
 - [ ] Aspect ratio + quality + fps settings; auto quality by level; thermal back-off
 - [ ] Camera FGS type added only while camera is on
 - [ ] Camera disabled with explanation on Level 3
