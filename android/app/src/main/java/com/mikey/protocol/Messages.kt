@@ -19,16 +19,21 @@ fun helloPayload(deviceId: String, deviceName: String, level: Int, token: String
         .toString()
         .toByteArray()
 
-/** [token] goes into every later HELLO. [resumed] means the PC kept our session across a drop. */
-class Welcome(val pcId: String, val pcName: String, val token: String, val resumed: Boolean)
+/**
+ * [token] goes into every later HELLO. [resumed] means the PC kept our session across a drop.
+ * [pcCaps] is what the PC can do, e.g. `opus`.
+ */
+class Welcome(val pcId: String, val pcName: String, val token: String, val resumed: Boolean, val pcCaps: Set<String>)
 
 fun parseWelcome(payload: ByteArray): Welcome {
     val json = JSONObject(String(payload))
+    val caps = json.optJSONArray("pc_caps")
     return Welcome(
         json.getString("pc_id"),
         json.getString("pc_name"),
         json.getString("token"),
         json.optBoolean("resumed", false),
+        if (caps == null) emptySet() else (0 until caps.length()).map { caps.getString(it) }.toSet(),
     )
 }
 
