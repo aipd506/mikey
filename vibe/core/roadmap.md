@@ -32,7 +32,8 @@ Android
 - [ ] Full UI per [phone-ux.md](phone-ux.md) (split halves, chevron + drawer, status dot 3 colors, rotation behavior)
 - [ ] Settings persistence per [phone-ux.md](phone-ux.md)
 - [ ] `TransportManager` with all four transports, event-driven probing ([connection-levels.md](../architecture/connection-levels.md)), make-before-break handover ([connection-levels.md](../architecture/connection-levels.md))
-- [ ] UDP discovery beacon; last-IP fast path; interface-pinned sockets
+- [x] UDP discovery beacon; last-IP fast path
+- [ ] Interface-pinned sockets (`Network.bindSocket`)
 - [ ] Opus encoding on L3/L4 (96 kbps / 10 ms on Wi‑Fi, 32–48 kbps / 20 ms on Bluetooth); AAudio low-latency capture
 - [ ] Bluetooth transport (bonded computers only, cached MAC)
 - [ ] Notification: live state text, soft mute/unmute, Stop

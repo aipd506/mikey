@@ -38,6 +38,8 @@ The phone's `127.0.0.1:7653` now reaches `localhost:7653` on the computer.
 
 Long-press the status dot and type the PC's address. Leave it empty to go back to USB. On the emulator, your computer is `10.0.2.2`.
 
+The emulator's network doesn't pass broadcasts or their replies, so discovery can't find a PC there. Type the address once instead: it is remembered as the last known address and used automatically from then on. Real discovery needs a real phone on the same Wi-Fi as the PC.
+
 ## Before committing
 
 - Format with `ktlint` ([coding-rules.md](../rules/coding-rules.md), rule 8).
