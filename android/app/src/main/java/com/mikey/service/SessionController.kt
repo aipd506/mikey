@@ -11,8 +11,10 @@ import com.mikey.media.OpusEncoder
 import com.mikey.protocol.FrameType
 import com.mikey.protocol.MediaHeader
 import com.mikey.protocol.byePayload
+import com.mikey.protocol.controlPayload
 import com.mikey.protocol.heartbeatPayload
 import com.mikey.protocol.helloPayload
+import com.mikey.protocol.parseControl
 import com.mikey.protocol.parseReject
 import com.mikey.protocol.parseWelcome
 import com.mikey.protocol.readFrame
@@ -33,6 +35,7 @@ import java.io.DataOutputStream
 import java.io.IOException
 import java.net.ProtocolException
 import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
@@ -43,22 +46,36 @@ import kotlin.concurrent.thread
  * backoff when the link drops. While streaming, a second thread watches for a better level and
  * opens it first, so the audio moves over without a gap and the old link is closed after.
  *
+ * Settings travel both ways in CONTROL frames: ours go out right after WELCOME and whenever they
+ * change, and what the PC's user changes is applied and kept here.
+ *
  * The network runs on its own threads; the capture thread only drops frames into a small queue,
- * so recording never waits on the network. [onLink] and [onCableHint] are called on those threads.
+ * so recording never waits on the network. The [listener] is called on those threads.
  */
-class SessionController(
-    context: Context,
-    private val onLink: (Link) -> Unit,
-    onCableHint: (Boolean) -> Unit,
-) {
+class SessionController(context: Context, private val listener: Listener) {
+
+    interface Listener {
+        fun onLink(link: Link)
+
+        fun onMuted(muted: Boolean)
+
+        fun onCableHint(on: Boolean)
+    }
+
     private val settings = Settings(context)
-    private val transports = TransportManager(context, settings, Discovery(settings.deviceId, Build.MODEL), onCableHint)
+    private val transports = TransportManager(context, settings, Discovery(settings.deviceId, Build.MODEL), listener::onCableHint)
     private val wifiLock = WifiLatencyLock(context)
     private val frames = ArrayBlockingQueue<AudioFrame>(QUEUE_FRAMES)
     private val capture = AudioCapture(context) { frames.offerDroppingOldest(it) }
     private val thread = Thread(::sessionLoop, "mikey-session")
 
+    /** CONTROL frames to send. Only the sender thread writes to the link. */
+    private val controls = ConcurrentLinkedQueue<ByteArray>()
+
     @Volatile private var running = false
+
+    /** Soft mute: still capturing, but silence goes out. */
+    @Volatile private var muted = false
 
     /** The link being greeted right now, so stop() can cut a long wait for approval short. */
     @Volatile private var greeting: Wire? = null
@@ -82,6 +99,14 @@ class SessionController(
         greeting?.close()
     }
 
+    /** Soft mute from the notification: allowed from the background, unlike releasing the mic. The PC is told. */
+    fun setMuted(on: Boolean) {
+        if (muted == on) return
+        muted = on
+        controls.add(controlPayload(muted = on))
+        listener.onMuted(on)
+    }
+
     private fun sessionLoop() {
         var failures = 0
         while (running) {
@@ -95,7 +120,7 @@ class SessionController(
                     Reaction.RETRY -> Unit
                     Reaction.FORGET_AND_RETRY -> settings.forgetPc()
                     Reaction.GIVE_UP -> {
-                        onLink(Link.Refused(e.reason))
+                        listener.onLink(Link.Refused(e.reason))
                         waitUntilStopped()
                         return
                     }
@@ -104,7 +129,7 @@ class SessionController(
                 continue
             } catch (e: IOException) {
                 Log.i(TAG, "No link to the PC: $e")
-                onLink(Link.Searching)
+                listener.onLink(Link.Searching)
                 transports.noteLevel(0)
             }
             if (running) pause(reconnectDelayMs(failures++))
@@ -167,7 +192,7 @@ class SessionController(
                     if (silent) throw IOException("The PC would ask its user; keeping the current link")
                     // The PC says nothing while it asks its user. Wait it out, up to its 60 s prompt limit.
                     wire.readTimeoutMs = APPROVAL_WAIT_MS
-                    onLink(Link.Waiting)
+                    listener.onLink(Link.Waiting)
                 }
                 FrameType.WELCOME -> {
                     val welcome = try {
@@ -190,8 +215,8 @@ class SessionController(
     }
 
     /**
-     * Sends audio and heartbeats until stopped (then says BYE), or throws when the link fails.
-     * Moves to a better link whenever the upgrade thread hands one over.
+     * Sends audio, controls and heartbeats until stopped (then says BYE), or throws when the link
+     * fails. Moves to a better link whenever the upgrade thread hands one over.
      */
     private fun stream(first: Wire) {
         var wire = first
@@ -213,6 +238,10 @@ class SessionController(
                     sayBye(old, "switch")
                     old.close()
                     Log.i(TAG, "Moved from level ${old.level} to level ${next.level}")
+                }
+                while (true) {
+                    val control = controls.poll() ?: break
+                    wire.output.writeFrame(FrameType.CONTROL, control)
                 }
                 val frame = try {
                     frames.poll(POLL_MS, TimeUnit.MILLISECONDS)
@@ -238,15 +267,16 @@ class SessionController(
             better.getAndSet(null)?.close()
             sender.close()
             wifiLock.release()
-            onLink(Link.Searching)
+            listener.onLink(Link.Searching)
             transports.noteLevel(0)
             wire.close()
         }
     }
 
-    /** Turns capture frames into AUDIO frames for one link: raw PCM, or Opus with the link's profile. */
-    private class Sender(private val encoder: OpusEncoder?, private val joiner: FrameJoiner) : Closeable {
+    /** Turns capture frames into AUDIO frames for one link: raw PCM, or Opus with the link's profile. Silence while muted. */
+    private inner class Sender(private val encoder: OpusEncoder?, private val joiner: FrameJoiner) : Closeable {
         fun send(frame: AudioFrame, output: DataOutputStream) {
+            if (muted) frame.pcm.fill(0)
             if (encoder == null) {
                 output.writeMediaFrame(FrameType.AUDIO, frame.seq, frame.captureTimeUs, MediaHeader.CODEC_PCM_S16LE, frame.pcm, 0, frame.pcm.size)
                 return
@@ -263,15 +293,20 @@ class SessionController(
         }
     }
 
-    /** Everything that depends on which link we send on: state, Wi-Fi lock, codec, and the reader. */
+    /**
+     * Everything that depends on which link we send on: state, Wi-Fi lock, codec, the reader, and
+     * our full settings for the PC, which go out first (wire-protocol.md).
+     */
     private fun startSending(wire: Wire): Sender {
-        if (running) onLink(Link.Live(wire.level))
+        if (running) listener.onLink(Link.Live(wire.level))
         transports.noteLevel(wire.level)
         if (wire.level == 4) wifiLock.hold() else wifiLock.release()
         val codec = audioCodecFor(wire.level, settings.losslessWifi, pcHasOpus = "opus" in pcCaps)
         val profile = opusProfileFor(wire.level)
         val encoder = if (codec == AudioCodec.OPUS) OpusEncoder(profile.application, profile.bitrate) else null
         Log.i(TAG, "Level ${wire.level}: sending ${if (encoder == null) "raw PCM" else "Opus ${profile.bitrate / 1000} kbps, ${profile.framesPerPacket * 10} ms frames"}")
+        controls.clear()
+        controls.add(controlPayload(settings.audio, muted))
         thread(name = "mikey-receive") { receive(wire) }
         return Sender(encoder, FrameJoiner(profile.framesPerPacket))
     }
@@ -299,16 +334,39 @@ class SessionController(
         better.getAndSet(null)?.close()
     }
 
-    /** Any frame from the PC proves the link is alive. Six silent seconds or a BYE end it. */
+    /** Any frame from the PC proves the link is alive. Six silent seconds or a BYE end it. CONTROL frames are applied. */
     private fun receive(wire: Wire) {
         try {
             do {
                 val frame = wire.input.readFrame()
+                if (frame.type == FrameType.CONTROL) onControl(frame.payload)
             } while (frame.type != FrameType.BYE)
         } catch (e: IOException) {
             // Timed out, dropped, or closed by the sender.
         } finally {
             wire.close() // Makes the sender's next write fail, so it reconnects.
+        }
+    }
+
+    /** The PC's user changed something. Audio settings are kept here; a mute is followed; the camera can only be turned on here. */
+    private fun onControl(payload: ByteArray) {
+        val update = try {
+            parseControl(payload)
+        } catch (e: JSONException) {
+            Log.w(TAG, "Bad CONTROL from the PC: ${e.message}")
+            return
+        }
+        val audio = update.applyTo(settings.audio)
+        if (audio != settings.audio) settings.audio = audio
+        update.muted?.let {
+            if (it != muted) {
+                muted = it // The PC already knows: no need to tell it back.
+                listener.onMuted(it)
+            }
+        }
+        if (update.videoOn == true) {
+            Log.i(TAG, "The PC asked to turn the camera on; only the phone can do that")
+            controls.add(controlPayload(videoOn = false))
         }
     }
 

@@ -3,13 +3,19 @@
     <string name="app_name">Mikey</string>
 
     <string name="notification_channel">Mic and camera</string>
-    <string name="notification_mic_on_searching">Mic on · Looking for PC</string>
-    <string name="notification_mic_on_waiting">Mic on · Waiting for PC approval</string>
-    <string name="notification_mic_on_usb">Mic on · USB</string>
-    <string name="notification_mic_on_wifi">Mic on · Wi-Fi</string>
-    <string name="notification_mic_on_denied">Mic on · PC said no</string>
-    <string name="notification_mic_on_version">Mic on · Mikey versions don\'t match</string>
-    <string name="notification_mic_on_refused">Mic on · PC refused</string>
+    <string name="notification_text">%1$s · %2$s</string>
+    <string name="notification_mic_on">Mic on</string>
+    <string name="notification_mic_muted">Mic muted</string>
+    <string name="notification_link_searching">Looking for PC</string>
+    <string name="notification_link_waiting">Waiting for PC approval</string>
+    <string name="notification_link_usb">USB</string>
+    <string name="notification_link_bluetooth">Bluetooth</string>
+    <string name="notification_link_wifi">Wi-Fi</string>
+    <string name="notification_link_denied">PC said no</string>
+    <string name="notification_link_version">Mikey versions don\'t match</string>
+    <string name="notification_link_refused">PC refused</string>
+    <string name="notification_mute">Mute</string>
+    <string name="notification_unmute">Unmute</string>
     <string name="notification_stop">Stop</string>
 
     <string name="cd_camera">Camera</string>
