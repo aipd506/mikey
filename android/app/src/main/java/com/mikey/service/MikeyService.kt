@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
  * Owns the mic session. Runs only while the mic is on; swiping the app away from Recents
  * stops it (stopWithTask in the manifest), and onDestroy puts everything back to off.
  */
-class MikeyService : Service() {
+class MikeyService : Service(), SessionController.Listener {
     private val notifier = Notifier(this)
     private val mainThread = Handler(Looper.getMainLooper())
     private var session: SessionController? = null
@@ -24,38 +24,53 @@ class MikeyService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_STOP) {
-            stopSelf()
-            return START_NOT_STICKY
+        when (intent?.action) {
+            ACTION_STOP -> {
+                stopSelf()
+                return START_NOT_STICKY
+            }
+            ACTION_MUTE, ACTION_UNMUTE -> {
+                session?.setMuted(intent.action == ACTION_MUTE)
+                return START_NOT_STICKY
+            }
         }
-        val notification = notifier.build(Link.Searching)
+        val notification = notifier.build(Link.Searching, muted = false)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             startForeground(Notifier.ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
         } else {
             startForeground(Notifier.ID, notification)
         }
         if (session == null) {
-            session = SessionController(
-                this,
-                onLink = { link -> mainThread.post { onLink(link) } },
-                onCableHint = { on -> mainThread.post { onCableHint(on) } },
-            ).also { it.start() }
+            session = SessionController(this, this).also { it.start() }
         }
         mutableState.value = mutableState.value.copy(micOn = true)
         // Not sticky: if Android kills the app, the mic must stay off until the user turns it on again.
         return START_NOT_STICKY
     }
 
-    // Runs on the main thread, so it can't race with onDestroy.
-    private fun onLink(link: Link) {
-        if (session == null || link == mutableState.value.link) return
-        mutableState.value = mutableState.value.copy(link = link)
-        notifier.show(link)
+    // The session calls these from its own threads. Everything runs on the main thread, so it can't race with onDestroy.
+
+    override fun onLink(link: Link) {
+        mainThread.post {
+            if (session == null || link == mutableState.value.link) return@post
+            mutableState.value = mutableState.value.copy(link = link)
+            notifier.show(link, mutableState.value.muted)
+        }
     }
 
-    private fun onCableHint(on: Boolean) {
-        if (session == null) return
-        mutableState.value = mutableState.value.copy(cableWithoutLink = on)
+    override fun onMuted(muted: Boolean) {
+        mainThread.post {
+            if (session == null || muted == mutableState.value.muted) return@post
+            mutableState.value = mutableState.value.copy(muted = muted)
+            notifier.show(mutableState.value.link, muted)
+        }
+    }
+
+    override fun onCableHint(on: Boolean) {
+        mainThread.post {
+            if (session == null) return@post
+            mutableState.value = mutableState.value.copy(cableWithoutLink = on)
+        }
     }
 
     override fun onDestroy() {
@@ -68,6 +83,8 @@ class MikeyService : Service() {
 
     companion object {
         const val ACTION_STOP = "com.mikey.action.STOP"
+        const val ACTION_MUTE = "com.mikey.action.MUTE"
+        const val ACTION_UNMUTE = "com.mikey.action.UNMUTE"
 
         private val mutableState = MutableStateFlow(MikeyState())
         val state: StateFlow<MikeyState> = mutableState.asStateFlow()
