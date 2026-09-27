@@ -31,6 +31,15 @@ android {
     buildFeatures {
         compose = true
     }
+
+    // libopus and the JNI wrapper. Needs CMake and the submodule (see vibe/skills/build-and-run-android.md).
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            // Any CMake from here up, whether from the SDK manager or the PATH.
+            version = "3.22.1+"
+        }
+    }
 }
 
 dependencies {
