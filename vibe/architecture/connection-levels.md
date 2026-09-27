@@ -2,6 +2,8 @@
 
 Priority order (1 = best). Mikey always uses the best level currently available and upgrades automatically when a better one appears.
 
+The phone's order of preference is 1, 2, 4, then 3: Bluetooth is the last resort, used only when no USB or Wi‑Fi link works, because it carries narrower audio and no video. The level numbers on the wire stay as in the table.
+
 | | Level | Needs from the user | Bandwidth (practical) | Added latency | Audio | Video |
 |---|---|---|---|---|---|---|
 | **1** | **USB debugging (ADB)** | Developer options → USB debugging on; tap *Allow* once | 100+ Mbps | lowest (~5–15 ms) | PCM 48 kHz lossless | MJPEG up to 1080p30 |
@@ -49,7 +51,7 @@ Priority order (1 = best). Mikey always uses the best level currently available 
 **Phone side (`BluetoothTransport`):**
 - Only considers **already-bonded** devices whose Bluetooth class is *Computer*. No scanning → no location permission needed.
 - First time: tries each bonded computer (connect attempt with UUID, 4 s timeout each), caches the MAC that answered. After that: only the cached MAC.
-- Permission `BLUETOOTH_CONNECT` (Android 12+) is requested the first time Level 3 is actually attempted — not at install.
+- Permission `BLUETOOTH_CONNECT` (Android 12+) is asked for together with the mic permission on the first tap, never at install. If the user refuses, Bluetooth is simply skipped.
 
 **PC side (`bt.rs`):**
 - Windows: Winsock `AF_BTH` socket, `bind` to any port, `WSASetService` to register the SDP record.

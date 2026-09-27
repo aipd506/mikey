@@ -35,9 +35,9 @@ Android
 - [x] UDP discovery beacon; last-IP fast path
 - [x] Interface-pinned sockets (`Network.bindSocket`)
 - [x] Opus on Wi‑Fi (96 kbps / 10 ms, low-delay mode; raw PCM if lossless is on)
-- [ ] Opus on Bluetooth (32 to 48 kbps / 20 ms, VOIP mode with in-band FEC)
+- [x] Opus on Bluetooth (48 kbps / 20 ms, VOIP mode); needs the real-device test
 - [ ] AAudio low-latency capture
-- [ ] Bluetooth transport (bonded computers only, cached MAC)
+- [x] Bluetooth transport (bonded computers only, cached MAC); needs the real-device test
 - [ ] Notification: live state text, soft mute/unmute, Stop
 - [x] Pairing token storage; PENDING/REJECT handling; "Forget"
 - [x] USB-connected-but-no-link tethering hint (in the state; the UI shows it later)
