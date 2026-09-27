@@ -150,9 +150,10 @@ vibe/      — Project brain: vision, architecture, rules, playbooks
 
 ### Android
 
-Requires Android Studio, or JDK 17+ and the Android SDK.
+Requires Android Studio, or JDK 17+ and the Android SDK, plus CMake for libopus (SDK Manager → SDK Tools → CMake, or `brew install cmake`).
 
 ```sh
+git submodule update --init   # libopus
 cd android
 ./gradlew assembleDebug
 # APK → android/app/build/outputs/apk/debug/
