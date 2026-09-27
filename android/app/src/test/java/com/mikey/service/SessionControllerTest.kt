@@ -24,6 +24,16 @@ class SessionControllerTest {
     }
 
     @Test
+    fun rawPcmOnUsbAndForLosslessWifiOpusOtherwise() {
+        assertEquals(AudioCodec.PCM, audioCodecFor(level = 1, losslessWifi = false, pcHasOpus = true))
+        assertEquals(AudioCodec.PCM, audioCodecFor(level = 2, losslessWifi = false, pcHasOpus = true))
+        assertEquals(AudioCodec.OPUS, audioCodecFor(level = 3, losslessWifi = false, pcHasOpus = true))
+        assertEquals(AudioCodec.OPUS, audioCodecFor(level = 4, losslessWifi = false, pcHasOpus = true))
+        assertEquals(AudioCodec.PCM, audioCodecFor(level = 4, losslessWifi = true, pcHasOpus = true))
+        assertEquals(AudioCodec.PCM, audioCodecFor(level = 4, losslessWifi = false, pcHasOpus = false))
+    }
+
+    @Test
     fun fullQueueDropsTheOldestItem() {
         val queue = ArrayBlockingQueue<Int>(2)
 

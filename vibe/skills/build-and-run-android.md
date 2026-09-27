@@ -5,6 +5,8 @@
 ## Setup
 
 - Android Studio, or JDK 17+ and the Android SDK.
+- CMake 3.22 or newer, for libopus: SDK Manager → SDK Tools → CMake, or `brew install cmake`.
+- libopus is a git submodule. After cloning: `git submodule update --init` (the build fails with an empty `android/app/src/main/cpp/opus` otherwise).
 - `android/local.properties` with `sdk.dir=…` — Android Studio writes it on first open. It is gitignored.
 - Open the **`android/`** folder in Android Studio, not the repo root.
 
