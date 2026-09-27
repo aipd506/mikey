@@ -14,6 +14,16 @@ class SessionControllerTest {
     }
 
     @Test
+    fun rejectPolicyRetriesOnlyWhatCanClearUpByItself() {
+        assertEquals(Reaction.RETRY, rejectPolicy("timeout"))
+        assertEquals(Reaction.RETRY, rejectPolicy("busy"))
+        assertEquals(Reaction.FORGET_AND_RETRY, rejectPolicy("bad_token"))
+        assertEquals(Reaction.GIVE_UP, rejectPolicy("denied"))
+        assertEquals(Reaction.GIVE_UP, rejectPolicy("version"))
+        assertEquals(Reaction.GIVE_UP, rejectPolicy("something-new"))
+    }
+
+    @Test
     fun fullQueueDropsTheOldestItem() {
         val queue = ArrayBlockingQueue<Int>(2)
 
