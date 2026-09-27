@@ -3,12 +3,16 @@ agp = "9.1.0"
 kotlin = "2.2.10"
 activityCompose = "1.10.1"
 composeBom = "2025.05.00"
+camerax = "1.6.2"
 junit = "4.13.2"
 
 [libraries]
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
 androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation" }
+androidx-camera-core = { group = "androidx.camera", name = "camera-core", version.ref = "camerax" }
+androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
+androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 
 [plugins]

@@ -58,11 +58,11 @@ PC
 **Done when:** Zoom, Teams, Google Meet (Chrome) and OBS show the Mikey camera; flipping front/back mid-call works with no black flash; the phone is held in any orientation and the image stays upright.
 
 Android
-- [ ] CameraX capture → JPEG → VIDEO frames; KEEP_ONLY_LATEST
-- [ ] Camera half: live state with lens label (no video on the phone), flip button (top-left, only when on)
-- [ ] Aspect ratio + quality + fps settings; auto quality by level; thermal back-off
-- [ ] Camera FGS type added only while camera is on
-- [ ] Camera disabled with explanation on Level 3
+- [x] CameraX capture → JPEG → VIDEO frames; KEEP_ONLY_LATEST
+- [x] Camera half: live state with lens label (no video on the phone), flip button (top-left, only when on)
+- [x] Aspect ratio + quality + fps settings; auto quality by level; thermal back-off (the switches come with the UI)
+- [x] Camera FGS type added only while camera is on
+- [x] Camera disabled with explanation on Level 3 (and when the PC has no virtual camera)
 
 PC
 - [x] JPEG decode → virtual camera (softcam / v4l2loopback)

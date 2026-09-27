@@ -1,6 +1,10 @@
 package com.mikey.settings
 
 import android.content.Context
+import com.mikey.media.Aspect
+import com.mikey.media.Fps
+import com.mikey.media.Lens
+import com.mikey.media.Quality
 import com.mikey.protocol.AudioSettings
 import java.security.SecureRandom
 
@@ -70,6 +74,17 @@ class Settings(context: Context) {
             edit.apply()
         }
 
+    /** The camera used last time; a flip is remembered (phone-ux.md). */
+    var lens: Lens
+        get() = Lens.fromWire(prefs.getString(KEY_LENS, null)) ?: Lens.BACK
+        set(value) = prefs.edit().putString(KEY_LENS, value.wire).apply()
+
+    val aspect: Aspect get() = Aspect.fromWire(prefs.getString(KEY_ASPECT, null))
+
+    val quality: Quality get() = Quality.fromWire(prefs.getString(KEY_QUALITY, null))
+
+    val fps: Fps get() = Fps.fromWire(prefs.getString(KEY_FPS, null))
+
     /** Send raw PCM on Wi-Fi instead of Opus. Off by default: Opus is transparent and copes better with busy Wi-Fi. */
     var losslessWifi: Boolean
         get() = prefs.getBoolean(KEY_WIFI_LOSSLESS, false)
@@ -88,6 +103,10 @@ class Settings(context: Context) {
         const val KEY_PC_LAST_IP = "pc.lastIp"
         const val KEY_PC_BT_ADDRESS = "pc.btAddress"
         const val KEY_WIFI_LOSSLESS = "audio.wifiLossless"
+        const val KEY_LENS = "camera.lens"
+        const val KEY_ASPECT = "camera.aspect"
+        const val KEY_QUALITY = "camera.quality"
+        const val KEY_FPS = "camera.fps"
         const val KEY_NS = "audio.ns"
         const val KEY_NS_STRENGTH = "audio.nsStrength"
         const val KEY_AEC = "audio.aec"

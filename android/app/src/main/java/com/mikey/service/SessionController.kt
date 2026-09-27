@@ -7,7 +7,11 @@ import android.util.Log
 import com.mikey.media.AudioCapture
 import com.mikey.media.AudioFrame
 import com.mikey.media.FrameJoiner
+import com.mikey.media.Lens
 import com.mikey.media.OpusEncoder
+import com.mikey.media.VideoCapture
+import com.mikey.media.VideoFrame
+import com.mikey.media.captureProfileFor
 import com.mikey.protocol.FrameType
 import com.mikey.protocol.MediaHeader
 import com.mikey.protocol.byePayload
@@ -42,14 +46,15 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
 
 /**
- * Streams the mic to the PC: connect, handshake, send audio and heartbeats, and reconnect with
- * backoff when the link drops. While streaming, a second thread watches for a better level and
- * opens it first, so the audio moves over without a gap and the old link is closed after.
+ * One session with the PC, for the mic and the camera: connect, handshake, send audio, video,
+ * controls and heartbeats, and reconnect with backoff when the link drops. While streaming, a
+ * second thread watches for a better level and opens it first, so the audio moves over without
+ * a gap and the old link is closed after.
  *
  * Settings travel both ways in CONTROL frames: ours go out right after WELCOME and whenever they
  * change, and what the PC's user changes is applied and kept here.
  *
- * The network runs on its own threads; the capture thread only drops frames into a small queue,
+ * The network runs on its own threads; the capture threads only drop frames into small queues,
  * so recording never waits on the network. The [listener] is called on those threads.
  */
 class SessionController(context: Context, private val listener: Listener) {
@@ -59,6 +64,8 @@ class SessionController(context: Context, private val listener: Listener) {
 
         fun onMuted(muted: Boolean)
 
+        fun onCamera(camera: CameraState)
+
         fun onCableHint(on: Boolean)
     }
 
@@ -67,6 +74,8 @@ class SessionController(context: Context, private val listener: Listener) {
     private val wifiLock = WifiLatencyLock(context)
     private val frames = ArrayBlockingQueue<AudioFrame>(QUEUE_FRAMES)
     private val capture = AudioCapture(context) { frames.offerDroppingOldest(it) }
+    private val videoFrames = ArrayBlockingQueue<VideoFrame>(VIDEO_QUEUE_FRAMES)
+    private val video: VideoCapture = VideoCapture(context, ::onVideoFrame)
     private val thread = Thread(::sessionLoop, "mikey-session")
 
     /** CONTROL frames to send. Only the sender thread writes to the link. */
@@ -74,30 +83,58 @@ class SessionController(context: Context, private val listener: Listener) {
 
     @Volatile private var running = false
 
+    @Volatile private var micOn = false
+
+    @Volatile private var cameraOn = false
+
+    @Volatile private var lens = settings.lens
+
+    /** The level we're streaming on, 0 when not connected. */
+    @Volatile private var level = 0
+
     /** Soft mute: still capturing, but silence goes out. */
     @Volatile private var muted = false
 
     /** The link being greeted right now, so stop() can cut a long wait for approval short. */
     @Volatile private var greeting: Wire? = null
 
-    /** What the PC said it can do in WELCOME, e.g. `opus`. */
-    private var pcCaps: Set<String> = emptySet()
+    /** What the PC said it can do in WELCOME, e.g. `opus`, `vcam`. */
+    @Volatile private var pcCaps: Set<String> = emptySet()
 
     fun start() {
         running = true
         transports.start()
-        capture.start()
         thread.start()
     }
 
-    /** Releases the mic at once. The session thread then says BYE and closes on its own. */
+    /** Releases the mic and camera at once. The session thread then says BYE and closes on its own. */
     fun stop() {
         running = false
-        capture.stop()
+        setMicOn(false)
+        cameraOn = false
+        video.stop()
         transports.stop()
         thread.interrupt()
         greeting?.close()
     }
+
+    /** A full queue means the link can't keep up: drop the oldest picture and let the encoder ease off. */
+    private fun onVideoFrame(frame: VideoFrame) {
+        video.backlog = !videoFrames.offer(frame)
+        if (video.backlog) videoFrames.offerDroppingOldest(frame)
+    }
+
+    fun setMicOn(on: Boolean) {
+        if (micOn == on) return
+        micOn = on
+        if (on) capture.start() else capture.stop()
+    }
+
+    /** Turns the camera on or off. Only the phone may turn it on; the PC may only turn it off. */
+    fun setCameraOn(on: Boolean) = setCameraOn(on, tellPc = true)
+
+    /** Switches to the other lens and remembers it. The PC holds the last frame during the switch. */
+    fun flip() = setLens(lens.other(), tellPc = true)
 
     /** Soft mute from the notification: allowed from the background, unlike releasing the mic. The PC is told. */
     fun setMuted(on: Boolean) {
@@ -105,6 +142,41 @@ class SessionController(context: Context, private val listener: Listener) {
         muted = on
         controls.add(controlPayload(muted = on))
         listener.onMuted(on)
+    }
+
+    private fun setCameraOn(on: Boolean, tellPc: Boolean) {
+        if (cameraOn == on) return
+        cameraOn = on
+        if (tellPc) controls.add(controlPayload(videoOn = on, lens = lens.wire))
+        updateCamera()
+    }
+
+    private fun setLens(next: Lens, tellPc: Boolean) {
+        if (lens == next) return
+        lens = next
+        settings.lens = next
+        if (tellPc) controls.add(controlPayload(lens = next.wire))
+        updateCamera()
+    }
+
+    /**
+     * Captures only when the camera is on and the link can carry video: Bluetooth can't, and
+     * neither can a PC without a virtual camera. Also picks the size for the level (auto quality).
+     */
+    private fun updateCamera() {
+        val blocked = when {
+            !cameraOn -> null
+            level == 3 -> CameraBlock.BLUETOOTH
+            level != 0 && "vcam" !in pcCaps -> CameraBlock.PC
+            else -> null
+        }
+        if (cameraOn && blocked == null) {
+            video.start(captureProfileFor(lens, settings.aspect, settings.quality, settings.fps, level))
+        } else {
+            video.stop()
+            videoFrames.clear()
+        }
+        listener.onCamera(CameraState(cameraOn, lens, blocked))
     }
 
     private fun sessionLoop() {
@@ -215,8 +287,8 @@ class SessionController(context: Context, private val listener: Listener) {
     }
 
     /**
-     * Sends audio, controls and heartbeats until stopped (then says BYE), or throws when the link
-     * fails. Moves to a better link whenever the upgrade thread hands one over.
+     * Sends audio, video, controls and heartbeats until stopped (then says BYE), or throws when the
+     * link fails. Moves to a better link whenever the upgrade thread hands one over.
      */
     private fun stream(first: Wire) {
         var wire = first
@@ -224,6 +296,7 @@ class SessionController(context: Context, private val listener: Listener) {
         val better = AtomicReference<Wire?>()
         val active = AtomicBoolean(true)
         frames.clear() // Audio queued while we were offline is too old to play now.
+        videoFrames.clear()
         var sender = startSending(wire)
         val upgrader = thread(name = "mikey-upgrade") { upgradeLoop(current, better, active) }
         try {
@@ -243,12 +316,22 @@ class SessionController(context: Context, private val listener: Listener) {
                     val control = controls.poll() ?: break
                     wire.output.writeFrame(FrameType.CONTROL, control)
                 }
+                // Audio paces the loop while the mic is on; otherwise pictures do, and with neither we idle.
                 val frame = try {
-                    frames.poll(POLL_MS, TimeUnit.MILLISECONDS)
+                    frames.poll(if (micOn) POLL_MS else 0, TimeUnit.MILLISECONDS)
                 } catch (e: InterruptedException) {
                     null
                 }
                 if (frame != null) sender.send(frame, wire.output)
+                // Audio first, then at most one picture per turn, so a big picture never holds audio back for long.
+                val picture = try {
+                    if (micOn) videoFrames.poll() else videoFrames.poll(POLL_MS, TimeUnit.MILLISECONDS)
+                } catch (e: InterruptedException) {
+                    null
+                }
+                if (picture != null) {
+                    wire.output.writeMediaFrame(FrameType.VIDEO, picture.seq, picture.captureTimeUs, MediaHeader.CODEC_JPEG, picture.jpeg, 0, picture.jpeg.size)
+                }
                 val nowMs = SystemClock.elapsedRealtime()
                 if (nowMs - lastHeartbeatMs >= HEARTBEAT_MS) {
                     wire.output.writeFrame(FrameType.HEARTBEAT, heartbeatPayload(SystemClock.elapsedRealtimeNanos() / 1000))
@@ -267,6 +350,8 @@ class SessionController(context: Context, private val listener: Listener) {
             better.getAndSet(null)?.close()
             sender.close()
             wifiLock.release()
+            level = 0
+            updateCamera()
             listener.onLink(Link.Searching)
             transports.noteLevel(0)
             wire.close()
@@ -294,10 +379,12 @@ class SessionController(context: Context, private val listener: Listener) {
     }
 
     /**
-     * Everything that depends on which link we send on: state, Wi-Fi lock, codec, the reader, and
-     * our full settings for the PC, which go out first (wire-protocol.md).
+     * Everything that depends on which link we send on: state, Wi-Fi lock, codec, the camera's
+     * size and whether it may send at all, the reader, and our full settings for the PC, which
+     * go out first (wire-protocol.md).
      */
     private fun startSending(wire: Wire): Sender {
+        level = wire.level
         if (running) listener.onLink(Link.Live(wire.level))
         transports.noteLevel(wire.level)
         if (wire.level == 4) wifiLock.hold() else wifiLock.release()
@@ -306,7 +393,8 @@ class SessionController(context: Context, private val listener: Listener) {
         val encoder = if (codec == AudioCodec.OPUS) OpusEncoder(profile.application, profile.bitrate) else null
         Log.i(TAG, "Level ${wire.level}: sending ${if (encoder == null) "raw PCM" else "Opus ${profile.bitrate / 1000} kbps, ${profile.framesPerPacket * 10} ms frames"}")
         controls.clear()
-        controls.add(controlPayload(settings.audio, muted))
+        controls.add(controlPayload(settings.audio, muted, videoOn = cameraOn, lens = lens.wire))
+        updateCamera()
         thread(name = "mikey-receive") { receive(wire) }
         return Sender(encoder, FrameJoiner(profile.framesPerPacket))
     }
@@ -348,7 +436,10 @@ class SessionController(context: Context, private val listener: Listener) {
         }
     }
 
-    /** The PC's user changed something. Audio settings are kept here; a mute is followed; the camera can only be turned on here. */
+    /**
+     * The PC's user changed something. Audio settings are kept here, a mute is followed, the
+     * camera can be turned off or flipped from there, but only turned on here.
+     */
     private fun onControl(payload: ByteArray) {
         val update = try {
             parseControl(payload)
@@ -364,9 +455,17 @@ class SessionController(context: Context, private val listener: Listener) {
                 listener.onMuted(it)
             }
         }
-        if (update.videoOn == true) {
-            Log.i(TAG, "The PC asked to turn the camera on; only the phone can do that")
-            controls.add(controlPayload(videoOn = false))
+        when (update.videoOn) {
+            true -> {
+                Log.i(TAG, "The PC asked to turn the camera on; only the phone can do that")
+                controls.add(controlPayload(videoOn = false))
+            }
+            false -> setCameraOn(false, tellPc = false)
+            null -> Unit
+        }
+        update.lens?.let { wanted ->
+            val next = if (wanted == "flip") lens.other() else Lens.fromWire(wanted)
+            if (next != null) setLens(next, tellPc = false)
         }
     }
 
@@ -397,6 +496,9 @@ class SessionController(context: Context, private val listener: Listener) {
 
         /** 200 ms of audio. Anything older would reach the PC too late to be played. */
         const val QUEUE_FRAMES = 20
+
+        /** Pictures are big and only the newest matters. */
+        const val VIDEO_QUEUE_FRAMES = 2
         const val HEARTBEAT_MS = 2_000L
         const val POLL_MS = 100L
         const val LINK_TIMEOUT_MS = 6_000

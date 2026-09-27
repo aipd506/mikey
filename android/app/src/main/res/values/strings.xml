@@ -3,9 +3,12 @@
     <string name="app_name">Mikey</string>
 
     <string name="notification_channel">Mic and camera</string>
-    <string name="notification_text">%1$s · %2$s</string>
+    <string name="notification_text">%1$s · %2$s · %3$s</string>
     <string name="notification_mic_on">Mic on</string>
     <string name="notification_mic_muted">Mic muted</string>
+    <string name="notification_mic_off">Mic off</string>
+    <string name="notification_camera_on">Camera on</string>
+    <string name="notification_camera_off">Camera off</string>
     <string name="notification_link_searching">Looking for PC</string>
     <string name="notification_link_waiting">Waiting for PC approval</string>
     <string name="notification_link_usb">USB</string>
@@ -18,7 +21,13 @@
     <string name="notification_unmute">Unmute</string>
     <string name="notification_stop">Stop</string>
 
-    <string name="cd_camera">Camera</string>
+    <string name="cd_camera_off">Camera off</string>
+    <string name="cd_camera_on">Camera on</string>
+    <string name="cd_flip">Flip camera</string>
+    <string name="camera_back">Back camera</string>
+    <string name="camera_front">Front camera</string>
+    <string name="camera_blocked_bluetooth">Camera isn\'t available over Bluetooth. Connect with USB or Wi-Fi.</string>
+    <string name="camera_blocked_pc">The PC can\'t show video.</string>
     <string name="cd_mic_off">Microphone off</string>
     <string name="cd_mic_on">Microphone on</string>
     <string name="cd_status_connected">Connected to PC</string>

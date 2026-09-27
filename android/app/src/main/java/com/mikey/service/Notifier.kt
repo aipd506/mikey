@@ -9,10 +9,10 @@ import android.content.Intent
 import com.mikey.MainActivity
 import com.mikey.R
 
-/** The notification Android requires while MikeyService runs: "Mic on · USB", with Mute and Stop. */
+/** The notification Android requires while MikeyService runs: "Mic on · Camera off · USB", with Mute and Stop. */
 class Notifier(private val service: Service) {
 
-    fun build(link: Link, muted: Boolean): Notification {
+    fun build(state: MikeyState): Notification {
         service.getSystemService(NotificationManager::class.java).createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
@@ -26,21 +26,29 @@ class Notifier(private val service: Service) {
             Intent(service, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE,
         )
-        val mic = service.getString(if (muted) R.string.notification_mic_muted else R.string.notification_mic_on)
-        return Notification.Builder(service, CHANNEL_ID)
+        val mic = service.getString(
+            when {
+                !state.micOn -> R.string.notification_mic_off
+                state.muted -> R.string.notification_mic_muted
+                else -> R.string.notification_mic_on
+            },
+        )
+        val camera = service.getString(if (state.camera.on) R.string.notification_camera_on else R.string.notification_camera_off)
+        val builder = Notification.Builder(service, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_mic)
             .setContentTitle(service.getString(R.string.app_name))
-            .setContentText(service.getString(R.string.notification_text, mic, service.getString(linkText(link))))
+            .setContentText(service.getString(R.string.notification_text, mic, camera, service.getString(linkText(state.link))))
             .setContentIntent(open)
             .setOngoing(true)
-            .addAction(action(if (muted) R.string.notification_unmute else R.string.notification_mute, if (muted) MikeyService.ACTION_UNMUTE else MikeyService.ACTION_MUTE, 1))
-            .addAction(action(R.string.notification_stop, MikeyService.ACTION_STOP, 2))
-            .build()
+        if (state.micOn) {
+            builder.addAction(action(if (state.muted) R.string.notification_unmute else R.string.notification_mute, if (state.muted) MikeyService.ACTION_UNMUTE else MikeyService.ACTION_MUTE, 1))
+        }
+        return builder.addAction(action(R.string.notification_stop, MikeyService.ACTION_STOP, 2)).build()
     }
 
     /** Replaces the notification's text. Shows nothing if the user turned notifications off. */
-    fun show(link: Link, muted: Boolean) {
-        service.getSystemService(NotificationManager::class.java).notify(ID, build(link, muted))
+    fun show(state: MikeyState) {
+        service.getSystemService(NotificationManager::class.java).notify(ID, build(state))
     }
 
     private fun action(label: Int, action: String, requestCode: Int): Notification.Action {
