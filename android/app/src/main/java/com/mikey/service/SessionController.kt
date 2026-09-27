@@ -6,6 +6,7 @@ import android.os.SystemClock
 import android.util.Log
 import com.mikey.media.AudioCapture
 import com.mikey.media.AudioFrame
+import com.mikey.media.OpusEncoder
 import com.mikey.protocol.FrameType
 import com.mikey.protocol.MediaHeader
 import com.mikey.protocol.byePayload
@@ -49,6 +50,9 @@ class SessionController(context: Context, private val onLink: (Link) -> Unit) {
     private val thread = Thread(::sessionLoop, "mikey-session")
 
     @Volatile private var running = false
+
+    /** What the PC said it can do in WELCOME, e.g. `opus`. */
+    private var pcCaps: Set<String> = emptySet()
 
     fun start() {
         running = true
@@ -126,6 +130,7 @@ class SessionController(context: Context, private val onLink: (Link) -> Unit) {
                     if (paired?.id != welcome.pcId || paired.token != welcome.token) {
                         settings.pairedPc = PairedPc(welcome.pcId, welcome.pcName, welcome.token)
                     }
+                    pcCaps = welcome.pcCaps
                     Log.i(TAG, "${if (welcome.resumed) "Resumed with" else "Connected to"} ${welcome.pcName} on level $level")
                     return
                 }
@@ -140,6 +145,9 @@ class SessionController(context: Context, private val onLink: (Link) -> Unit) {
         frames.clear() // Audio queued while we were offline is too old to play now.
         if (running) onLink(Link.Live(level))
         if (level == 4) wifiLock.hold()
+        val codec = audioCodecFor(level, settings.losslessWifi, pcHasOpus = "opus" in pcCaps)
+        val encoder = if (codec == AudioCodec.OPUS) OpusEncoder(OpusEncoder.Application.LOW_DELAY, WIFI_OPUS_BITRATE) else null
+        Log.i(TAG, "Sending ${if (encoder == null) "raw PCM" else "Opus ${WIFI_OPUS_BITRATE / 1000} kbps"}")
         Thread({ receive(input, socket) }, "mikey-receive").start()
         try {
             var lastHeartbeatMs = 0L
@@ -150,15 +158,30 @@ class SessionController(context: Context, private val onLink: (Link) -> Unit) {
                     null
                 }
                 if (frame != null) {
-                    output.writeMediaFrame(
-                        FrameType.AUDIO,
-                        frame.seq,
-                        frame.captureTimeUs,
-                        MediaHeader.CODEC_PCM_S16LE,
-                        frame.pcm,
-                        0,
-                        frame.pcm.size,
-                    )
+                    if (encoder == null) {
+                        output.writeMediaFrame(
+                            FrameType.AUDIO,
+                            frame.seq,
+                            frame.captureTimeUs,
+                            MediaHeader.CODEC_PCM_S16LE,
+                            frame.pcm,
+                            0,
+                            frame.pcm.size,
+                        )
+                    } else {
+                        val length = encoder.encode(frame.pcm)
+                        if (length > 0) {
+                            output.writeMediaFrame(
+                                FrameType.AUDIO,
+                                frame.seq,
+                                frame.captureTimeUs,
+                                MediaHeader.CODEC_OPUS,
+                                encoder.packet,
+                                0,
+                                length,
+                            )
+                        }
+                    }
                 }
                 val nowMs = SystemClock.elapsedRealtime()
                 if (nowMs - lastHeartbeatMs >= HEARTBEAT_MS) {
@@ -169,6 +192,7 @@ class SessionController(context: Context, private val onLink: (Link) -> Unit) {
             }
             sayBye(output)
         } finally {
+            encoder?.close()
             wifiLock.release()
             onLink(Link.Searching)
             socket.close()
@@ -221,7 +245,19 @@ class SessionController(context: Context, private val onLink: (Link) -> Unit) {
         /** The PC gives its user 60 s to answer the prompt. A little longer, so we never give up first. */
         const val APPROVAL_WAIT_MS = 65_000L
         const val REJECT_RETRY_MS = 5_000L
+
+        /** Transparent to the ear for one voice, and a tenth of raw PCM (media-pipeline.md). */
+        const val WIFI_OPUS_BITRATE = 96_000
     }
+}
+
+internal enum class AudioCodec { PCM, OPUS }
+
+/** Raw PCM on USB, where bandwidth is free, and when the user asked for lossless Wi-Fi. Opus elsewhere, if the PC can decode it. */
+internal fun audioCodecFor(level: Int, losslessWifi: Boolean, pcHasOpus: Boolean): AudioCodec = when {
+    !pcHasOpus || level <= 2 -> AudioCodec.PCM
+    level == 4 && losslessWifi -> AudioCodec.PCM
+    else -> AudioCodec.OPUS
 }
 
 /** The PC answered HELLO with REJECT. */
