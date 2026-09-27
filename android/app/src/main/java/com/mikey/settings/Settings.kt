@@ -3,6 +3,9 @@ package com.mikey.settings
 import android.content.Context
 import java.security.SecureRandom
 
+/** The PC we're paired with, and the token it gave us to prove it next time. */
+class PairedPc(val id: String, val name: String, val token: String)
+
 /** Everything the app saves. Defaults live here and nowhere else. */
 class Settings(context: Context) {
     private val prefs = context.getSharedPreferences("mikey", Context.MODE_PRIVATE)
@@ -12,6 +15,24 @@ class Settings(context: Context) {
         get() = prefs.getString(KEY_DEVICE_ID, null)
             ?: newDeviceId().also { prefs.edit().putString(KEY_DEVICE_ID, it).apply() }
 
+    /** The last PC that accepted us. Null until the first WELCOME, and after Forget. */
+    var pairedPc: PairedPc?
+        get() {
+            val id = prefs.getString(KEY_PC_ID, null) ?: return null
+            val token = prefs.getString(KEY_PC_TOKEN, null) ?: return null
+            return PairedPc(id, prefs.getString(KEY_PC_NAME, null) ?: "", token)
+        }
+        set(value) = prefs.edit()
+            .putString(KEY_PC_ID, value?.id)
+            .putString(KEY_PC_NAME, value?.name)
+            .putString(KEY_PC_TOKEN, value?.token)
+            .apply()
+
+    /** After this the next connection counts as new, so Wi-Fi asks for approval again. */
+    fun forgetPc() {
+        pairedPc = null
+    }
+
     /** PC address typed in for Wi-Fi testing (debug builds only). Null means connect over USB. */
     var manualPcAddress: String?
         get() = prefs.getString(KEY_MANUAL_PC_ADDRESS, null)
@@ -19,6 +40,9 @@ class Settings(context: Context) {
 
     private companion object {
         const val KEY_DEVICE_ID = "device.id"
+        const val KEY_PC_ID = "pc.lastId"
+        const val KEY_PC_NAME = "pc.lastName"
+        const val KEY_PC_TOKEN = "pc.token"
         const val KEY_MANUAL_PC_ADDRESS = "pc.manualAddress"
     }
 }
