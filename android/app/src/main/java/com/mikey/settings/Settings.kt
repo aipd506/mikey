@@ -28,9 +28,15 @@ class Settings(context: Context) {
             .putString(KEY_PC_TOKEN, value?.token)
             .apply()
 
+    /** Where the PC was the last time we reached it over Wi-Fi. Tried first, before searching. */
+    var lastPcAddress: String?
+        get() = prefs.getString(KEY_PC_LAST_IP, null)
+        set(value) = prefs.edit().putString(KEY_PC_LAST_IP, value).apply()
+
     /** After this the next connection counts as new, so Wi-Fi asks for approval again. */
     fun forgetPc() {
         pairedPc = null
+        lastPcAddress = null
     }
 
     /** PC address typed in for Wi-Fi testing (debug builds only). Null means connect over USB. */
@@ -43,6 +49,7 @@ class Settings(context: Context) {
         const val KEY_PC_ID = "pc.lastId"
         const val KEY_PC_NAME = "pc.lastName"
         const val KEY_PC_TOKEN = "pc.token"
+        const val KEY_PC_LAST_IP = "pc.lastIp"
         const val KEY_MANUAL_PC_ADDRESS = "pc.manualAddress"
     }
 }
