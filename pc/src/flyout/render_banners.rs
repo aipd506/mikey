@@ -19,30 +19,38 @@ pub fn render_banners(
 
     // ── Pending join request banner ──
     if let Some(pending) = pending_devices.first() {
-        y += 4;
+        y += 2;
         draw_pill_bg(
             dc,
-            16,
+            14,
             y,
-            FLYOUT_WIDTH - 16,
-            y + 34,
-            MONO_DARKER,
-            MONO_BTN_BORDER,
+            FLYOUT_WIDTH - 14,
+            y + 30,
+            COLOR_BTN_BG,
+            COLOR_STATUS_WAIT,
         );
-        let ptext = format!("Join: {}", pending.device_name);
+        let ptext = format!(
+            "Join: {}",
+            pending.device_name.chars().take(12).collect::<String>()
+        );
         draw_text(
             dc,
             font_body_bold,
-            MONO_LIGHT,
-            24,
-            y + 6,
-            200,
-            y + 28,
+            COLOR_STATUS_WAIT,
+            20,
+            y + 4,
+            170,
+            y + 26,
             &ptext,
             0,
         );
 
-        let allow_rect = rect(206, y + 5, 260, y + 29);
+        let allow_rect = rect(
+            FLYOUT_WIDTH - 14 - 104,
+            y + 4,
+            FLYOUT_WIDTH - 14 - 56,
+            y + 26,
+        );
         flyout
             .button_rects
             .push((FlyoutButton::AllowJoin(pending.request_id), allow_rect));
@@ -52,13 +60,13 @@ pub fn render_banners(
             allow_rect.top,
             allow_rect.right,
             allow_rect.bottom,
-            MONO_WHITE,
-            MONO_WHITE,
+            COLOR_MIC_ON,
+            COLOR_MIC_ON,
         );
         draw_text(
             dc,
             font_body_bold,
-            MONO_BLACK,
+            COLOR_TEXT_PRIMARY,
             allow_rect.left,
             allow_rect.top,
             allow_rect.right,
@@ -67,7 +75,7 @@ pub fn render_banners(
             DT_CENTER_V,
         );
 
-        let deny_rect = rect(266, y + 5, 314, y + 29);
+        let deny_rect = rect(FLYOUT_WIDTH - 14 - 50, y + 4, FLYOUT_WIDTH - 14 - 6, y + 26);
         flyout
             .button_rects
             .push((FlyoutButton::DenyJoin(pending.request_id), deny_rect));
@@ -77,13 +85,13 @@ pub fn render_banners(
             deny_rect.top,
             deny_rect.right,
             deny_rect.bottom,
-            MONO_DARKER,
-            MONO_DIM,
+            COLOR_BTN_BG,
+            COLOR_BTN_BORDER,
         );
         draw_text(
             dc,
             font_body_bold,
-            MONO_LIGHT,
+            COLOR_TEXT_SECONDARY,
             deny_rect.left,
             deny_rect.top,
             deny_rect.right,
@@ -91,37 +99,38 @@ pub fn render_banners(
             "Deny",
             DT_CENTER_V,
         );
-        y += 38;
+        y += 34;
     }
 
     // ── Virtual mic setup warning ──
     let (virt_ready, _) = crate::audio::sink::check_virtual_device_status();
     if !virt_ready {
-        y += 4;
+        y += 2;
         draw_text(
             dc,
             font_icon,
-            MONO_LIGHT,
-            16,
-            y + 3,
-            36,
-            y + 27,
+            COLOR_STATUS_WAIT,
+            14,
+            y + 2,
+            32,
+            y + 24,
             "\u{E7BA}",
             DT_CENTER_V,
         );
         draw_text(
             dc,
             font_body,
-            MONO_LIGHT,
-            38,
-            y + 3,
-            210,
-            y + 27,
-            "Mikey Mic setup needed",
+            COLOR_TEXT_PRIMARY,
+            34,
+            y + 2,
+            180,
+            y + 24,
+            "Mic setup needed",
             0,
         );
 
-        let btn = rect(FLYOUT_WIDTH - 16 - 90, y + 2, FLYOUT_WIDTH - 16, y + 28);
+        let btn_w = 76;
+        let btn = rect(FLYOUT_WIDTH - 14 - btn_w, y + 2, FLYOUT_WIDTH - 14, y + 24);
         flyout
             .button_rects
             .push((FlyoutButton::SetupVirtualMic, btn));
@@ -132,17 +141,21 @@ pub fn render_banners(
             btn.top,
             btn.right,
             btn.bottom,
-            if s_hover { MONO_BTN_HOVER } else { MONO_DARKER },
             if s_hover {
-                MONO_BTN_BORDER_HI
+                COLOR_BTN_HOVER
             } else {
-                MONO_BTN_BORDER
+                COLOR_BTN_BG
+            },
+            if s_hover {
+                COLOR_BTN_BORDER_HI
+            } else {
+                COLOR_BTN_BORDER
             },
         );
         draw_text(
             dc,
             font_body_bold,
-            MONO_LIGHT,
+            COLOR_TEXT_PRIMARY,
             btn.left,
             btn.top,
             btn.right,
@@ -150,7 +163,7 @@ pub fn render_banners(
             "Setup Mic",
             DT_CENTER_V,
         );
-        y += 34;
+        y += 28;
     }
 
     y

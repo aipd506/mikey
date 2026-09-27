@@ -76,3 +76,26 @@ fn test_skip_unknown_frame_type() {
     assert_eq!(parsed.frame_type, FrameType::Hello);
     assert_eq!(parsed.payload, b"{\"proto\":1}");
 }
+
+#[test]
+fn test_control_payload_roundtrip() {
+    let ctrl = ControlPayload {
+        audio: Some(ControlAudioPayload {
+            ns: Some(true),
+            ns_strength: Some(0.85),
+            aec: Some(true),
+            gate_db: Some(-45.0),
+            muted: Some(false),
+        }),
+        video: Some(ControlVideoPayload {
+            on: Some(true),
+            lens: Some("front".to_string()),
+            preview: Some(true),
+            aspect: Some("16:9".to_string()),
+            fps: Some(30),
+        }),
+    };
+    let json = serde_json::to_string(&ctrl).unwrap();
+    let parsed: ControlPayload = serde_json::from_str(&json).unwrap();
+    assert_eq!(parsed, ctrl);
+}

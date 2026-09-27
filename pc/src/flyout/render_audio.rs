@@ -1,4 +1,5 @@
 //! Microphone status, mute toggle button, and live VU meter rendering.
+//! Ultra-compact, visual-first audio controls.
 
 #![cfg(windows)]
 
@@ -22,60 +23,61 @@ pub fn render_mic_section(
         flyout.jitter_buffer.get_peak_level()
     };
 
-    let (mic_label, mic_glyph, mic_bright) = if flyout.is_muted {
-        ("Mic Muted", "\u{E74F}", MONO_DIM)
+    let (mic_label, mic_glyph, mic_color, label_color) = if flyout.is_muted {
+        ("Mic Muted", "\u{E74F}", COLOR_ALERT_RED, COLOR_ALERT_RED)
     } else if is_active {
-        ("Microphone Live", "\u{E720}", MONO_WHITE)
+        ("Microphone", "\u{E720}", COLOR_MIC_ON, COLOR_TEXT_PRIMARY)
     } else {
-        ("Microphone Idle", "\u{E720}", MONO_DIM)
+        (
+            "Microphone",
+            "\u{E720}",
+            COLOR_ICON_OFF,
+            COLOR_TEXT_SECONDARY,
+        )
     };
 
     // Mic icon
     draw_text(
         dc,
         font_icon,
-        mic_bright,
-        16,
+        mic_color,
+        14,
         y,
-        36,
-        y + 26,
+        32,
+        y + 22,
         mic_glyph,
         DT_CENTER_V,
     );
 
     // Mic label
-    let label_bright = if flyout.is_muted {
-        MONO_DIM
-    } else if is_active {
-        MONO_WHITE
-    } else {
-        MONO_MID
-    };
     draw_text(
         dc,
         font_heading,
-        label_bright,
-        40,
+        label_color,
+        36,
         y,
-        220,
-        y + 26,
+        190,
+        y + 22,
         mic_label,
         0,
     );
 
     // Mute button pill
-    let mute_rect = rect(FLYOUT_WIDTH - 16 - 76, y, FLYOUT_WIDTH - 16, y + 26);
+    let mute_w = 60;
+    let mute_rect = rect(FLYOUT_WIDTH - 14 - mute_w, y, FLYOUT_WIDTH - 14, y + 22);
     flyout
         .button_rects
         .push((FlyoutButton::MuteToggle, mute_rect));
     let mute_hover = flyout.hover_btn == Some(FlyoutButton::MuteToggle);
+
     let (mute_bg, mute_bd, mute_fg) = if flyout.is_muted {
-        (MONO_WHITE, MONO_WHITE, MONO_BLACK)
+        (COLOR_ALERT_RED, COLOR_ALERT_RED, COLOR_TEXT_PRIMARY)
     } else if mute_hover {
-        (MONO_BTN_HOVER, MONO_BTN_BORDER_HI, MONO_WHITE)
+        (COLOR_BTN_HOVER, COLOR_BTN_BORDER_HI, COLOR_TEXT_PRIMARY)
     } else {
-        (MONO_BTN_BG, MONO_BTN_BORDER, MONO_LIGHT)
+        (COLOR_BTN_BG, COLOR_BTN_BORDER, COLOR_TEXT_SECONDARY)
     };
+
     draw_pill_bg(
         dc,
         mute_rect.left,
@@ -85,6 +87,7 @@ pub fn render_mic_section(
         mute_bg,
         mute_bd,
     );
+
     draw_text(
         dc,
         font_body_bold,
@@ -97,22 +100,38 @@ pub fn render_mic_section(
         DT_CENTER_V,
     );
 
-    // VU meter bar
-    let vu_top = y + 32;
-    let vu_w = FLYOUT_WIDTH - 32;
-    draw_pill_bg(dc, 16, vu_top, 16 + vu_w, vu_top + 5, MONO_DARK, MONO_DARK);
+    // VU meter bar (integrated 4px line)
+    let vu_top = y + 26;
+    let vu_w = FLYOUT_WIDTH - 28;
+    draw_pill_bg(
+        dc,
+        14,
+        vu_top,
+        14 + vu_w,
+        vu_top + 4,
+        COLOR_BORDER,
+        COLOR_BORDER,
+    );
+
     if is_active && !flyout.is_muted && peak_level > 0.01 {
         let active_w = ((vu_w as f32 * peak_level) as i32).clamp(4, vu_w);
-        let fill = unsafe { win32::CreateSolidBrush(MONO_WHITE) };
-        let fill_p = unsafe { win32::CreatePen(win32::PS_SOLID, 1, MONO_WHITE) };
+        let bar_color = if peak_level > 0.85 {
+            COLOR_ALERT_RED
+        } else if peak_level > 0.65 {
+            COLOR_STATUS_WAIT
+        } else {
+            COLOR_MIC_ON
+        };
+        let fill = unsafe { win32::CreateSolidBrush(bar_color) };
+        let fill_p = unsafe { win32::CreatePen(win32::PS_SOLID, 1, bar_color) };
         unsafe {
             win32::SelectObject(dc, fill);
             win32::SelectObject(dc, fill_p);
-            win32::RoundRect(dc, 16, vu_top, 16 + active_w, vu_top + 5, 4, 4);
+            win32::RoundRect(dc, 14, vu_top, 14 + active_w, vu_top + 4, 3, 3);
             win32::DeleteObject(fill);
             win32::DeleteObject(fill_p);
         }
     }
 
-    vu_top + 5 + 14
+    vu_top + 4 + 10
 }

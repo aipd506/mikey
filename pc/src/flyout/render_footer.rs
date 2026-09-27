@@ -1,4 +1,5 @@
-//! Footer buttons rendering: icon-only Quit and Disconnect buttons.
+//! Footer buttons rendering: icon-only Logs, Disconnect, and Quit buttons.
+//! Ultra-compact bottom toolbar.
 
 #![cfg(windows)]
 
@@ -10,20 +11,32 @@ use super::window::FlyoutWindow;
 pub fn render_footer_section(
     dc: win32::HDC,
     flyout: &mut FlyoutWindow,
-    font_icon_lg: win32::HFONT,
+    font_body: win32::HFONT,
+    font_icon: win32::HFONT,
     height: i32,
 ) {
     let is_active = flyout.session_manager.is_active();
-    let footer_y = height - 38;
-    let btn_size = 36;
+    let footer_y = height - 28;
+    let btn_w = 28;
+    let btn_h = 20;
 
-    // Quit button (power icon only)
-    let quit_rect = rect(
-        FLYOUT_WIDTH - 16 - btn_size,
+    // Left: version label
+    draw_text(
+        dc,
+        font_body,
+        COLOR_TEXT_MUTED,
+        14,
         footer_y,
-        FLYOUT_WIDTH - 16,
-        footer_y + 28,
+        100,
+        footer_y + btn_h,
+        "Mikey v1.0",
+        DT_CENTER_V,
     );
+
+    let mut right_x = FLYOUT_WIDTH - 14;
+
+    // Quit button (power icon)
+    let quit_rect = rect(right_x - btn_w, footer_y, right_x, footer_y + btn_h);
     flyout.button_rects.push((FlyoutButton::Quit, quit_rect));
     let quit_hover = flyout.hover_btn == Some(FlyoutButton::Quit);
     draw_pill_bg(
@@ -33,37 +46,76 @@ pub fn render_footer_section(
         quit_rect.right,
         quit_rect.bottom,
         if quit_hover {
-            MONO_BTN_HOVER
+            COLOR_BTN_HOVER
         } else {
-            MONO_DARKER
+            COLOR_BTN_BG
         },
         if quit_hover {
-            MONO_BTN_BORDER_HI
+            COLOR_BTN_BORDER_HI
         } else {
-            MONO_BTN_BORDER
+            COLOR_BTN_BORDER
         },
     );
-    let q_fg = if quit_hover { MONO_WHITE } else { MONO_MID };
     draw_text(
         dc,
-        font_icon_lg,
-        q_fg,
+        font_icon,
+        if quit_hover {
+            COLOR_ALERT_RED
+        } else {
+            COLOR_TEXT_SECONDARY
+        },
         quit_rect.left,
-        footer_y,
+        quit_rect.top,
         quit_rect.right,
-        footer_y + 28,
+        quit_rect.bottom,
         "\u{E7E8}",
         DT_CENTER_V,
     );
+    right_x -= btn_w + 6;
 
-    // Disconnect button (icon only, visible only when active)
+    // Logs button (folder icon)
+    let logs_rect = rect(right_x - btn_w, footer_y, right_x, footer_y + btn_h);
+    flyout
+        .button_rects
+        .push((FlyoutButton::OpenLogs, logs_rect));
+    let logs_hover = flyout.hover_btn == Some(FlyoutButton::OpenLogs);
+    draw_pill_bg(
+        dc,
+        logs_rect.left,
+        logs_rect.top,
+        logs_rect.right,
+        logs_rect.bottom,
+        if logs_hover {
+            COLOR_BTN_HOVER
+        } else {
+            COLOR_BTN_BG
+        },
+        if logs_hover {
+            COLOR_BTN_BORDER_HI
+        } else {
+            COLOR_BTN_BORDER
+        },
+    );
+    draw_text(
+        dc,
+        font_icon,
+        if logs_hover {
+            COLOR_TEXT_PRIMARY
+        } else {
+            COLOR_TEXT_SECONDARY
+        },
+        logs_rect.left,
+        logs_rect.top,
+        logs_rect.right,
+        logs_rect.bottom,
+        "\u{ED25}",
+        DT_CENTER_V,
+    );
+    right_x -= btn_w + 6;
+
+    // Disconnect button (visible when active)
     if is_active {
-        let disc_rect = rect(
-            quit_rect.left - 8 - btn_size,
-            footer_y,
-            quit_rect.left - 8,
-            footer_y + 28,
-        );
+        let disc_rect = rect(right_x - btn_w, footer_y, right_x, footer_y + btn_h);
         flyout
             .button_rects
             .push((FlyoutButton::Disconnect, disc_rect));
@@ -75,25 +127,28 @@ pub fn render_footer_section(
             disc_rect.right,
             disc_rect.bottom,
             if disc_hover {
-                MONO_BTN_HOVER
+                COLOR_BTN_HOVER
             } else {
-                MONO_DARKER
+                COLOR_BTN_BG
             },
             if disc_hover {
-                MONO_BTN_BORDER_HI
+                COLOR_BTN_BORDER_HI
             } else {
-                MONO_BTN_BORDER
+                COLOR_BTN_BORDER
             },
         );
-        let d_fg = if disc_hover { MONO_WHITE } else { MONO_MID };
         draw_text(
             dc,
-            font_icon_lg,
-            d_fg,
+            font_icon,
+            if disc_hover {
+                COLOR_TEXT_PRIMARY
+            } else {
+                COLOR_TEXT_SECONDARY
+            },
             disc_rect.left,
-            footer_y,
+            disc_rect.top,
             disc_rect.right,
-            footer_y + 28,
+            disc_rect.bottom,
             "\u{E8CD}",
             DT_CENTER_V,
         );

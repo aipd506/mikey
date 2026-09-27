@@ -126,8 +126,28 @@ pub fn handle_bt_client<S: Read + Write>(
                     &Frame::new(FrameType::Heartbeat, frame.payload),
                 );
             }
+            FrameType::Control => {
+                if let Ok(ctrl) =
+                    serde_json::from_slice::<crate::protocol::ControlPayload>(&frame.payload)
+                {
+                    if let Some(ref audio) = ctrl.audio {
+                        if let Some(aec) = audio.aec {
+                            jitter_buffer.set_aec_enabled(aec);
+                        }
+                        if let Some(strength) = audio.ns_strength {
+                            jitter_buffer.set_ns_strength((strength * 100.0) as u32);
+                        }
+                    }
+                }
+            }
             FrameType::Bye => break,
             _ => {}
+        }
+
+        for ctrl in session_manager.take_pending_controls() {
+            if let Ok(bytes) = serde_json::to_vec(&ctrl) {
+                let _ = write_frame(&mut stream, &Frame::new(FrameType::Control, bytes));
+            }
         }
     }
 

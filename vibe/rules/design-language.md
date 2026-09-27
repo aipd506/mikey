@@ -45,17 +45,19 @@ Pressed state: 0.08 white alpha overlay. Nothing else.
 ## 8.5 PC Tray Flyout Design Specifications
 
 - **Container:**
-  - Compact borderless floating dialog (~350 px width, ~440–540 px dynamic height).
-  - Background `#111111` (`surface`), outer border 1 px solid `#2C2C2E` (`divider`), 8 px corner radius.
+  - Ultra-compact borderless floating dialog (~300 px width, ~215–330 px dynamic height).
+  - Background `#111111` (`surface`), outer border 1 px solid `#2C2C2E` (`divider`), 12 px corner radius.
   - No drop shadows, no blur/glassmorphism, no OS title bar.
 - **Controls & Elements:**
-  - **Live Audio VU Meter:** Horizontal bar (height 6 px), track `#2C2C2E`. Level bar renders `#30D158` (normal), `#FFD60A` (peak > -6 dB), `#FF453A` (clipping 0 dB). Instant attack, smooth decay.
-  - **Gain / Volume Slider:** 4 px flat track (`#2C2C2E`), 12 px circular thumb (`#FFFFFF`), active fill `#30D158`.
-  - **Toggle Switches:** Compact flat switches (32×18 px). Active background `#30D158`, inactive `#3A3A3C`, white circular thumb.
-  - **Pill Badges:** Height 20 px (10 px radius), background `#2C2C2E`, text 10 px bold uppercase (`L1 USB`, `L4 WI-FI`).
+  - **Minimal Typography:** Crisp Segoe UI Variable fonts (12–15px), sentence case, zero unnecessary text labels. Icons carry meaning.
+  - **Live Audio VU Meter:** Horizontal bar (height 4 px) integrated directly under the microphone row, track `#2C2C2E`. Level bar renders `#30D158` (normal), `#FFD60A` (peak > -6 dB), `#FF453A` (clipping 0 dB). Instant attack, smooth decay.
+  - **Unified Toggle Pills:** Compact flat pills (height 24 px, 6 px corner radius). Active background `#30D158` (audio) or `#0A84FF` (video), inactive background `#1C1C1E` with `#2C2C2E` border.
+  - **Noise Suppression Slider:** Slim 4 px flat track (`#2C2C2E`), active fill `#30D158`, 10 px circular white thumb.
+  - **Persistent Camera Option:** Eye/preview icon button (`[ Preview ]`) always available to open/toggle floating camera preview window, even when camera is off/idle.
+  - **Lens Flip Control:** Visual `[ Flip ⟲ ]` button to trigger front/back camera switch remotely.
   - **Embedded Camera Thumbnail:** 16:9 aspect box, `#000000` background, 1 px `#2C2C2E` border, 4 px corner radius.
 - **Interaction Rules:**
   - Light dismiss: Closes on blur (`WM_KILLFOCUS`), `Esc` key, or tray icon re-click.
-  - Hover state: 0.04 white alpha overlay.
+  - Hover state: 0.05 white alpha overlay (`#2C2C2E` highlight).
   - Pressed state: 0.08 white alpha overlay.
 

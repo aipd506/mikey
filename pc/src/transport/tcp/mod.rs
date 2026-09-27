@@ -103,11 +103,36 @@ pub fn handle_client(
                     &Frame::new(FrameType::Heartbeat, frame.payload),
                 );
             }
+            FrameType::Control => {
+                if let Ok(ctrl) =
+                    serde_json::from_slice::<crate::protocol::ControlPayload>(&frame.payload)
+                {
+                    if let Some(ref audio) = ctrl.audio {
+                        if let Some(aec) = audio.aec {
+                            jitter_buffer.set_aec_enabled(aec);
+                        }
+                        if let Some(strength) = audio.ns_strength {
+                            jitter_buffer.set_ns_strength((strength * 100.0) as u32);
+                        }
+                    }
+                    if let Some(ref video) = ctrl.video {
+                        if let Some(on) = video.on {
+                            video_pipeline.set_camera_active(on);
+                        }
+                    }
+                }
+            }
             FrameType::Bye => {
                 println!("[disconnect] Phone sent BYE frame");
                 break;
             }
             _ => {}
+        }
+
+        for ctrl in session_manager.take_pending_controls() {
+            if let Ok(bytes) = serde_json::to_vec(&ctrl) {
+                let _ = write_frame(&mut stream, &Frame::new(FrameType::Control, bytes));
+            }
         }
     }
 

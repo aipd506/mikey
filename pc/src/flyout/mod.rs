@@ -5,6 +5,7 @@
 
 #![cfg(windows)]
 
+pub mod blit;
 pub mod gdi;
 pub mod input;
 pub mod layout;

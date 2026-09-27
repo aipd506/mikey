@@ -2,7 +2,10 @@ mod payloads;
 #[cfg(test)]
 mod tests;
 
-pub use payloads::{ByePayload, HelloPayload, RejectPayload, WelcomePayload};
+pub use payloads::{
+    ByePayload, ControlAudioPayload, ControlPayload, ControlVideoPayload, HelloPayload,
+    RejectPayload, WelcomePayload,
+};
 
 use std::io::{self, Error, ErrorKind, Read, Write};
 

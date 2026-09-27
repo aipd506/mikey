@@ -69,4 +69,5 @@ pub(crate) struct SessionInner {
     pub(crate) config_path: PathBuf,
     pub(crate) active_session: Option<ActiveSession>,
     pub(crate) pending_requests: HashMap<u64, PendingEntry>,
+    pub(crate) pending_controls: Vec<crate::protocol::ControlPayload>,
 }

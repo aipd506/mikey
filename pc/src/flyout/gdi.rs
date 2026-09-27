@@ -70,13 +70,21 @@ pub fn draw_slider(hdc: win32::HDC, track_left: i32, track_right: i32, center_y:
     let tb = center_y + track_h / 2;
 
     // Track background
-    draw_pill_bg(hdc, track_left, tt, track_right, tb, MONO_DARK, MONO_DARK);
+    draw_pill_bg(
+        hdc,
+        track_left,
+        tt,
+        track_right,
+        tb,
+        COLOR_BORDER,
+        COLOR_BORDER,
+    );
 
     // Active fill
     let fill_w = ((track_right - track_left) as f32 * value.clamp(0.0, 1.0)) as i32;
     if fill_w > 2 {
-        let fill = unsafe { win32::CreateSolidBrush(MONO_WHITE) };
-        let fill_p = unsafe { win32::CreatePen(win32::PS_SOLID, 1, MONO_WHITE) };
+        let fill = unsafe { win32::CreateSolidBrush(COLOR_MIC_ON) };
+        let fill_p = unsafe { win32::CreatePen(win32::PS_SOLID, 1, COLOR_MIC_ON) };
         unsafe {
             win32::SelectObject(hdc, fill);
             win32::SelectObject(hdc, fill_p);
@@ -94,7 +102,7 @@ pub fn draw_slider(hdc: win32::HDC, track_left: i32, track_right: i32, center_y:
         center_y - thumb_r,
         thumb_x + thumb_r,
         center_y + thumb_r,
-        MONO_WHITE,
+        COLOR_TEXT_PRIMARY,
     );
 }
 
