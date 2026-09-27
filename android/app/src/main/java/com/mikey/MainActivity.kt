@@ -51,7 +51,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** Debug builds only: type the PC's address to test over Wi-Fi. Empty means USB. */
+    /** Debug builds only: type the PC's address to test over Wi-Fi (empty means USB), or forget the paired PC. */
     private fun askPcAddress() {
         val settings = Settings(this)
         val field = EditText(this).apply {
@@ -59,13 +59,16 @@ class MainActivity : ComponentActivity() {
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
             setText(settings.manualPcAddress.orEmpty())
         }
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle(R.string.debug_pc_address_title)
             .setMessage(R.string.debug_pc_address_message)
             .setView(field)
             .setPositiveButton(R.string.debug_pc_address_save) { _, _ -> settings.manualPcAddress = field.text.toString() }
             .setNegativeButton(android.R.string.cancel, null)
-            .show()
+        settings.pairedPc?.let { pc ->
+            dialog.setNeutralButton(getString(R.string.debug_forget_pc, pc.name)) { _, _ -> settings.forgetPc() }
+        }
+        dialog.show()
     }
 
     private fun isDebuggable() = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0

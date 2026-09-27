@@ -61,7 +61,7 @@ fun SplitScreen(state: MikeyState, onMicTap: () -> Unit, onStatusLongPress: (() 
             )
         }
         StatusDot(
-            connected = state.connected,
+            link = state.link,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 // Before the padding, so the long-press area is bigger than the 10 dp dot.

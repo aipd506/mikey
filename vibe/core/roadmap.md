@@ -26,15 +26,20 @@ PC
 **Goal:** Mikey finds the PC by itself on every level and upgrades/downgrades automatically.
 **Done when:** with the same phone, you can go Wi‑Fi → plug in (USB) → unplug → turn Wi‑Fi off (Bluetooth) during a single call and the other person keeps hearing you, with only brief blips.
 
+> Order on Android: every feature first, the full UI last. Until then the app keeps its plain Phase 1 screen, with debug-only controls where a feature needs input.
+
 Android
 - [ ] Full UI per [phone-ux.md](phone-ux.md) (split halves, chevron + drawer, status dot 3 colors, rotation behavior)
 - [ ] Settings persistence per [phone-ux.md](phone-ux.md)
 - [ ] `TransportManager` with all four transports, event-driven probing ([connection-levels.md](../architecture/connection-levels.md)), make-before-break handover ([connection-levels.md](../architecture/connection-levels.md))
-- [ ] UDP discovery beacon; last-IP fast path; interface-pinned sockets
-- [ ] Opus encoding on L3/L4 (96 kbps / 10 ms on Wi‑Fi, 32–48 kbps / 20 ms on Bluetooth); AAudio low-latency capture
+- [x] UDP discovery beacon; last-IP fast path
+- [ ] Interface-pinned sockets (`Network.bindSocket`)
+- [x] Opus on Wi‑Fi (96 kbps / 10 ms, low-delay mode; raw PCM if lossless is on)
+- [ ] Opus on Bluetooth (32 to 48 kbps / 20 ms, VOIP mode with in-band FEC)
+- [ ] AAudio low-latency capture
 - [ ] Bluetooth transport (bonded computers only, cached MAC)
 - [ ] Notification: live state text, soft mute/unmute, Stop
-- [ ] Pairing token storage; PENDING/REJECT handling; "Forget"
+- [x] Pairing token storage; PENDING/REJECT handling; "Forget"
 - [ ] USB-connected-but-no-link tethering hint
 
 PC
@@ -54,7 +59,7 @@ PC
 
 Android
 - [ ] CameraX capture → JPEG → VIDEO frames; KEEP_ONLY_LATEST
-- [ ] Camera half: live preview (toggleable), flip button (top-left, only when on)
+- [ ] Camera half: live state with lens label (no video on the phone), flip button (top-left, only when on)
 - [ ] Aspect ratio + quality + fps settings; auto quality by level; thermal back-off
 - [ ] Camera FGS type added only while camera is on
 - [ ] Camera disabled with explanation on Level 3

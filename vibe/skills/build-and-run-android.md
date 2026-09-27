@@ -5,6 +5,8 @@
 ## Setup
 
 - Android Studio, or JDK 17+ and the Android SDK.
+- CMake 3.22 or newer, for libopus: SDK Manager → SDK Tools → CMake, or `brew install cmake`.
+- libopus is a git submodule. After cloning: `git submodule update --init` (the build fails with an empty `android/app/src/main/cpp/opus` otherwise).
 - `android/local.properties` with `sdk.dir=…` — Android Studio writes it on first open. It is gitignored.
 - Open the **`android/`** folder in Android Studio, not the repo root.
 
@@ -37,6 +39,8 @@ The phone's `127.0.0.1:7653` now reaches `localhost:7653` on the computer.
 ## Wi-Fi testing (debug builds)
 
 Long-press the status dot and type the PC's address. Leave it empty to go back to USB. On the emulator, your computer is `10.0.2.2`.
+
+The emulator's network doesn't pass broadcasts or their replies, so discovery can't find a PC there. Type the address once instead: it is remembered as the last known address and used automatically from then on. Real discovery needs a real phone on the same Wi-Fi as the PC.
 
 ## Before committing
 

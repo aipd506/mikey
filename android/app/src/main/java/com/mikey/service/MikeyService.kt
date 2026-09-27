@@ -28,14 +28,14 @@ class MikeyService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
-        val notification = notifier.build(level = null)
+        val notification = notifier.build(Link.Searching)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             startForeground(Notifier.ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
         } else {
             startForeground(Notifier.ID, notification)
         }
         if (session == null) {
-            session = SessionController(this) { level -> mainThread.post { onLink(level) } }.also { it.start() }
+            session = SessionController(this) { link -> mainThread.post { onLink(link) } }.also { it.start() }
         }
         mutableState.value = mutableState.value.copy(micOn = true)
         // Not sticky: if Android kills the app, the mic must stay off until the user turns it on again.
@@ -43,10 +43,10 @@ class MikeyService : Service() {
     }
 
     // Runs on the main thread, so it can't race with onDestroy.
-    private fun onLink(level: Int?) {
-        if (session == null) return
-        mutableState.value = mutableState.value.copy(connected = level != null)
-        notifier.show(level)
+    private fun onLink(link: Link) {
+        if (session == null || link == mutableState.value.link) return
+        mutableState.value = mutableState.value.copy(link = link)
+        notifier.show(link)
     }
 
     override fun onDestroy() {

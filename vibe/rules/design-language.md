@@ -7,7 +7,7 @@
 - **The screen is the button.** Each half of the phone screen is a tap target.
 - **Rotation aware, not rotation reactive.** Glyphs rotate; the layout doesn't.
 - **System font only.** No custom typefaces.
-- **No decorative animation.** State changes snap. The only motion: drawer slide (standard bottom-sheet), level ring, live preview.
+- **No decorative animation.** State changes snap. The only motion: drawer slide (standard bottom-sheet), level ring.
 
 ## 8.2 Color palette
 
