@@ -158,9 +158,9 @@ Follow [`vibe/rules/design-language.md`](vibe/rules/design-language.md):
 - Pure functional design: zero shadows, zero gradients, zero rounded glassmorphism, zero decorative spring animations.
 - Copy must be calm, concise, and actionable (e.g., *"Tap Allow on your phone"*, not *"ADB authorization error code 3"*).
 - **Color Palette (Android OLED Black)**:
-  - Background: `#000000` | Surface: `#111111` | Divider: `#2C2C2E`
-  - Text Primary: `#FFFFFF` | Text Secondary: `#8E8E93` | Icon Off: `#3A3A3C`
-  - Mic Active: `#30D158` | Camera Active: `#0A84FF`
+  - Background: `#000000` | Sheet: `#111111` | Tile: `#1C1C1C` | Hairline: `#2A2A2A`
+  - Text: `#FFFFFF` | Text Secondary: `#8E8E93` | Inactive: `#3A3A3C`
+  - Live (the PC is receiving): `#D71921`. A mic or camera that's on turns white.
   - Status OK: `#30D158` | Status Waiting: `#FFD60A` | Status Error: `#FF453A`
 
 ---
@@ -168,7 +168,7 @@ Follow [`vibe/rules/design-language.md`](vibe/rules/design-language.md):
 ## Code Quality & Verification Commands
 
 Before proposing changes, verify locally:
-- **Android**: ktlint check and unit tests (`./gradlew ktlintCheck test`).
+- **Android**: unit tests and lint (`./gradlew testDebugUnitTest lintDebug`).
 - **PC**: `cargo fmt --check` and `cargo clippy -- -D warnings`.
 - Verify performance constraints against [`vibe/rules/performance-budgets.md`](vibe/rules/performance-budgets.md).
 

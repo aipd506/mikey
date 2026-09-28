@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import com.mikey.settings.Settings
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,7 +29,15 @@ class MikeyService : Service(), SessionController.Listener {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val state = mutableState.value
         when (intent?.action) {
-            ACTION_STOP -> stopSelf()
+            ACTION_STOP -> {
+                // A deliberate stop: nothing to turn back on next time, even with "Remember mic/camera state".
+                Settings(this).run {
+                    lastMicOn = false
+                    lastCameraOn = false
+                }
+                stopSelf()
+            }
+            ACTION_SETTINGS -> session?.settingsChanged()
             ACTION_MUTE, ACTION_UNMUTE -> session?.setMuted(intent.action == ACTION_MUTE)
             ACTION_FLIP -> session?.flip()
             ACTION_MIC_OFF -> turn(mic = false, camera = state.camera.on)
@@ -74,8 +83,11 @@ class MikeyService : Service(), SessionController.Listener {
 
     override fun onLink(link: Link) {
         mainThread.post {
-            if (session == null || link == mutableState.value.link) return@post
-            mutableState.value = mutableState.value.copy(link = link)
+            val state = mutableState.value
+            if (session == null || link == state.link) return@post
+            // Searching right after streaming means the link dropped, not that there never was a PC.
+            val reconnecting = link == Link.Searching && (state.link is Link.Live || state.reconnecting)
+            mutableState.value = state.copy(link = link, reconnecting = reconnecting)
             notifier.show(mutableState.value)
         }
     }
@@ -109,7 +121,18 @@ class MikeyService : Service(), SessionController.Listener {
     }
 
     override fun onDisconnectedByPc() {
-        mainThread.post { if (session != null) stopSelf() }
+        mainThread.post {
+            if (session == null) return@post
+            Settings(this).run {
+                lastMicOn = false
+                lastCameraOn = false
+            }
+            stopSelf()
+        }
+    }
+
+    override fun onMicLevel(level: Float) {
+        mutableMicLevel.value = level
     }
 
     override fun onDestroy() {
@@ -117,6 +140,7 @@ class MikeyService : Service(), SessionController.Listener {
         session = null
         mainThread.removeCallbacksAndMessages(null)
         mutableState.value = MikeyState()
+        mutableMicLevel.value = 0f
         super.onDestroy()
     }
 
@@ -129,9 +153,15 @@ class MikeyService : Service(), SessionController.Listener {
         const val ACTION_MIC_OFF = "com.mikey.action.MIC_OFF"
         const val ACTION_CAMERA_ON = "com.mikey.action.CAMERA_ON"
         const val ACTION_CAMERA_OFF = "com.mikey.action.CAMERA_OFF"
+        const val ACTION_SETTINGS = "com.mikey.action.SETTINGS"
 
         private val mutableState = MutableStateFlow(MikeyState())
         val state: StateFlow<MikeyState> = mutableState.asStateFlow()
+
+        private val mutableMicLevel = MutableStateFlow(0f)
+
+        /** How loud the mic is, 0 to 1, while it's on. */
+        val micLevel: StateFlow<Float> = mutableMicLevel.asStateFlow()
 
         /** Call only from the app on screen: Android 14+ refuses to start a mic or camera service from the background. */
         fun micOn(context: Context) = startOn(context, ACTION_MIC_ON)
@@ -143,6 +173,16 @@ class MikeyService : Service(), SessionController.Listener {
         fun cameraOff(context: Context) = tell(context, ACTION_CAMERA_OFF)
 
         fun flip(context: Context) = tell(context, ACTION_FLIP)
+
+        /** Soft mute from the app. Only while the mic is on. */
+        fun mute(context: Context, on: Boolean) {
+            if (state.value.micOn) tell(context, if (on) ACTION_MUTE else ACTION_UNMUTE)
+        }
+
+        /** The user changed a setting: tell the PC now if we're running; otherwise it goes with the next connection. */
+        fun settingsChanged(context: Context) {
+            if (state.value.let { it.micOn || it.camera.on }) tell(context, ACTION_SETTINGS)
+        }
 
         private fun startOn(context: Context, action: String) {
             context.startForegroundService(Intent(context, MikeyService::class.java).setAction(action))

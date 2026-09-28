@@ -3,43 +3,45 @@
 ## 8.1 Principles
 
 - **Flat, not glossy.** No glassmorphism, gradients or drop shadows.
-- **Honest, binary states.** On or off. The only exceptions are the amber "waiting" state and the mic level ring.
+- **Red means the PC is receiving.** The only red on the phone is the on-air dot on the mic and camera. Everything else is black, white and greys; the status dot keeps the colors it shares with the PC tray.
 - **The screen is the button.** Each half of the phone screen is a tap target.
+- **Say the state in words.** Under each circle a short label in capitals says what is happening (*MIC LIVE*, *CAMERA OFF · TAP TO START*), with one plain sentence when the user has to act.
 - **Rotation aware, not rotation reactive.** Glyphs rotate; the layout doesn't.
-- **System font only.** No custom typefaces.
-- **No decorative animation.** State changes snap. The only motion: drawer slide (standard bottom-sheet), level ring.
+- **Quiet motion.** Only short, functional transitions: the sheet slides in 180 ms, its scrim fades in 140 ms, a switch knob moves in 100 ms. The only live element is the mic's level ring.
 
 ## 8.2 Color palette
 
 | Token | Hex | Usage |
 |-------|-----|-------|
-| `bg` | `#000000` | Background — pure black, OLED-friendly |
-| `surface` | `#111111` | Drawer, dialogs |
-| `divider` | `#2C2C2E` | Separators, split line |
-| `icon-off` | `#3A3A3C` | Dimmed mic/camera/flip/chevron |
-| `mic-on` | `#30D158` | Mic on + level ring |
-| `cam-on` | `#0A84FF` | Camera on |
-| `status-ok` | `#30D158` | Connected & streaming path live |
-| `status-wait` | `#FFD60A` | Waiting for approval / authorization |
-| `status-err` | `#FF453A` | No PC |
-| `text-primary` | `#FFFFFF` | Readable text |
-| `text-secondary` | `#8E8E93` | Sub-labels, version string |
+| `bg` | `#000000` | Background, OLED black |
+| `sheet` | `#111111` | Settings sheet |
+| `tile` | `#1C1C1C` | Grouped rows in the sheet; ring dots when off |
+| `hairline` | `#2A2A2A` | Dividers, the split line, a switch that's off |
+| `text` | `#FFFFFF` | Primary text; a mic or camera that's on |
+| `text-secondary` | `#8E8E93` | Labels, hints, version string |
+| `inactive` | `#3A3A3C` | Dimmed icons and outlines |
+| `live` | `#D71921` | The on-air dot: the PC is receiving |
+| `grid` | `#1A1A1A` | Dot texture behind the camera half |
+| `status-ok` | `#30D158` | Status dot: streaming (as on the PC tray) |
+| `status-wait` | `#FFD60A` | Status dot: waiting for approval |
+| `status-err` | `#FF453A` | Status dot: no PC |
 
 Pressed state: 0.08 white alpha overlay. Nothing else.
 
 ## 8.3 Typography
 
-- System default (Roboto on most Android).
-- Three sizes only: `17sp` (reserved), `14sp` drawer items, `12sp` metadata.
-- Regular 400 everywhere; Medium 500 for drawer section headers.
-- Sentence case. Never all-caps.
+- **Geist** for text and **Geist Mono** for labels, bundled as variable fonts under the SIL Open Font License (`android/licenses/geist-OFL.txt`).
+- Sizes: 17 sp medium for the sheet header, 15 sp for rows, 14 sp for segments and the sentence under a circle, 12.5 sp for row subtitles.
+- State labels and section titles: Geist Mono 11 sp, capitals, 0.14 em letter spacing. Units keep their case (−45 dB).
+- Sentence case everywhere else.
 
 ## 8.4 Icons & sizes
 
-- Mic/camera icons 56 dp; outline 2 dp stroke when off, filled when on.
-- Flip button 40 dp touch target (24 dp glyph), 16 dp from top-left edges.
-- Status dot 10 dp rounded square (3 dp radius), 16 dp from bottom-right edges.
-- Chevron 24 dp glyph, 48 dp touch target, centered on the split line.
+- Icons are drawn on a 24 grid with round caps and joins: the big mic and camera with a 0.9 stroke at 56 dp, everything else with 1.8.
+- Mic and camera sit in 112 dp circles: dim outline when off, white outline when on but not reaching the PC, white with a black icon and the 14 dp red on-air dot when the PC receives. Dashed when unavailable or without permission.
+- The mic's level ring: 48 dots of 5 dp on a 184 dp ring, filling from the bottom up with the voice.
+- Flip button: 40 dp circle in a 48 dp target, top-left, only while the camera is on. Chevron: 36 dp circle on the split line.
+- Status dot 10 dp rounded square (3 dp radius), 16 dp from the bottom-right edges.
 - All touch targets ≥ 48 dp.
 
 ## 8.5 PC Tray Flyout Design Specifications
