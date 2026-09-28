@@ -12,33 +12,29 @@ import java.net.Socket
  * default network is mobile data. With [bindTo] it leaves through that interface's address instead.
  */
 class TcpTransport private constructor(
-    val host: String,
+    override val host: String,
     private val port: Int,
-    val level: Int,
+    override val level: Int,
     private val connectTimeoutMs: Int,
     private val network: Network? = null,
     private val bindTo: InetAddress? = null,
-) {
-    fun open(): Socket {
+) : Transport {
+    override fun open(): Connection {
         val socket = network?.socketFactory?.createSocket() ?: Socket()
         try {
             bindTo?.let { socket.bind(InetSocketAddress(it, 0)) }
             socket.tcpNoDelay = true
-            socket.soTimeout = LINK_TIMEOUT_MS
             socket.connect(InetSocketAddress(host, port), connectTimeoutMs)
         } catch (e: IOException) {
             socket.close()
             throw e
         }
-        return socket
+        return Connection(level, host, socket.getInputStream(), socket.getOutputStream(), setReadTimeout = { socket.soTimeout = it }) { socket.close() }
     }
 
     companion object {
         /** The PC listens here on every level. */
         const val PC_PORT = 7653
-
-        /** No frame from the PC for this long means the link is dead. */
-        const val LINK_TIMEOUT_MS = 6_000
 
         /** Through the `adb reverse` tunnel. Localhost answers at once, so a short timeout is enough. */
         fun adb() = TcpTransport("127.0.0.1", PC_PORT, level = 1, connectTimeoutMs = 300)

@@ -1,6 +1,11 @@
 package com.mikey.settings
 
 import android.content.Context
+import com.mikey.media.Aspect
+import com.mikey.media.Fps
+import com.mikey.media.Lens
+import com.mikey.media.Quality
+import com.mikey.protocol.AudioSettings
 import java.security.SecureRandom
 
 /** The PC we're paired with, and the token it gave us to prove it next time. */
@@ -33,15 +38,52 @@ class Settings(context: Context) {
         get() = prefs.getString(KEY_PC_LAST_IP, null)
         set(value) = prefs.edit().putString(KEY_PC_LAST_IP, value).apply()
 
+    /** The Bluetooth address of the bonded computer that answered before, so only it is tried from then on. */
+    var pcBtAddress: String?
+        get() = prefs.getString(KEY_PC_BT_ADDRESS, null)
+        set(value) = prefs.edit().putString(KEY_PC_BT_ADDRESS, value).apply()
+
     /** After this the next connection counts as new, so Wi-Fi asks for approval again. */
     fun forgetPc() {
         pairedPc = null
         lastPcAddress = null
+        pcBtAddress = null
     }
 
     /** Connection levels the user allows: 1 USB debugging, 2 USB tethering, 3 Bluetooth, 4 Wi-Fi. All by default. */
     val enabledLevels: Set<Int>
         get() = prefs.getStringSet(KEY_LEVELS, null)?.mapNotNull { it.toIntOrNull() }?.toSet() ?: setOf(1, 2, 3, 4)
+
+    /**
+     * The audio processing the PC does for us. Defaults: noise suppression on and high, echo
+     * cancellation on, noise gate off (phone-ux.md). Either side can change them; the phone keeps them.
+     */
+    var audio: AudioSettings
+        get() = AudioSettings(
+            ns = prefs.getBoolean(KEY_NS, true),
+            nsStrength = prefs.getFloat(KEY_NS_STRENGTH, 0.8f),
+            aec = prefs.getBoolean(KEY_AEC, true),
+            gateDb = if (prefs.contains(KEY_GATE_DB)) prefs.getFloat(KEY_GATE_DB, 0f) else null,
+        )
+        set(value) {
+            val edit = prefs.edit()
+                .putBoolean(KEY_NS, value.ns)
+                .putFloat(KEY_NS_STRENGTH, value.nsStrength)
+                .putBoolean(KEY_AEC, value.aec)
+            if (value.gateDb == null) edit.remove(KEY_GATE_DB) else edit.putFloat(KEY_GATE_DB, value.gateDb)
+            edit.apply()
+        }
+
+    /** The camera used last time; a flip is remembered (phone-ux.md). */
+    var lens: Lens
+        get() = Lens.fromWire(prefs.getString(KEY_LENS, null)) ?: Lens.BACK
+        set(value) = prefs.edit().putString(KEY_LENS, value.wire).apply()
+
+    val aspect: Aspect get() = Aspect.fromWire(prefs.getString(KEY_ASPECT, null))
+
+    val quality: Quality get() = Quality.fromWire(prefs.getString(KEY_QUALITY, null))
+
+    val fps: Fps get() = Fps.fromWire(prefs.getString(KEY_FPS, null))
 
     /** Send raw PCM on Wi-Fi instead of Opus. Off by default: Opus is transparent and copes better with busy Wi-Fi. */
     var losslessWifi: Boolean
@@ -59,7 +101,16 @@ class Settings(context: Context) {
         const val KEY_PC_NAME = "pc.lastName"
         const val KEY_PC_TOKEN = "pc.token"
         const val KEY_PC_LAST_IP = "pc.lastIp"
+        const val KEY_PC_BT_ADDRESS = "pc.btAddress"
         const val KEY_WIFI_LOSSLESS = "audio.wifiLossless"
+        const val KEY_LENS = "camera.lens"
+        const val KEY_ASPECT = "camera.aspect"
+        const val KEY_QUALITY = "camera.quality"
+        const val KEY_FPS = "camera.fps"
+        const val KEY_NS = "audio.ns"
+        const val KEY_NS_STRENGTH = "audio.nsStrength"
+        const val KEY_AEC = "audio.aec"
+        const val KEY_GATE_DB = "audio.gateDb"
         const val KEY_LEVELS = "levels.enabled"
         const val KEY_MANUAL_PC_ADDRESS = "pc.manualAddress"
     }

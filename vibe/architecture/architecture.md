@@ -58,7 +58,7 @@
 | PC process model | **Single per-user process**, thread per concern | Tray + audio context need the user session. No IPC, no service. |
 | Transport abstraction | Every level yields a **reliable byte stream** (TCP or RFCOMM) | Same framing, same session logic on all four levels. |
 | Media profile per level | Chosen by the phone, declared in `HELLO` | USB = raw PCM + high-quality video; BT = Opus 32–48 kbps, no video; Wi‑Fi = Opus 96 kbps (or raw PCM if enabled) + adaptive video. |
-| Settings ownership | Phone owns stream/audio settings; PC owns PC-only settings | The phone is "the one place" the user configures the stream. |
+| Settings ownership | The phone keeps the stream/audio settings; either side can change them and CONTROL keeps both in sync. PC-only settings stay on the PC | One saved copy, on the phone, and the same controls on both sides. |
 | Where audio DSP runs | **PC only** (noise suppression, gate, echo cancellation) | Better AEC with raw input, no phone heat/battery cost, same quality on every phone |
 | Concurrency (PC) | Blocking std threads + bounded channels | Small, predictable, no async runtime. One exception: the Linux Bluetooth module ([tech-stack.md](tech-stack.md)). |
 | Concurrency (phone) | Dedicated threads for capture/network; Kotlin coroutines + `StateFlow` only for UI state | Real-time audio must not share a dispatcher with UI work. |

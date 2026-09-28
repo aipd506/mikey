@@ -7,17 +7,24 @@ import java.nio.ByteBuffer
 
 const val PROTO_VERSION = 1
 
-/** [token] is the pairing token the PC gave us last time, or null when we have none. */
-fun helloPayload(deviceId: String, deviceName: String, level: Int, token: String?): ByteArray =
+/**
+ * [token] is the pairing token the PC gave us last time, or null when we have none. [camera] is
+ * whether this phone has one.
+ */
+fun helloPayload(deviceId: String, deviceName: String, level: Int, token: String?, camera: Boolean): ByteArray =
     JSONObject()
         .put("proto", PROTO_VERSION)
         .put("device_id", deviceId)
         .put("device_name", deviceName)
         .put("level", level)
         .putOpt("token", token)
-        .put("caps", JSONArray().put("audio"))
+        .put("caps", JSONArray(phoneCaps(camera, level)))
         .toString()
         .toByteArray()
+
+/** What the phone can send right now. Never video over Bluetooth (level 3): it's too narrow. */
+internal fun phoneCaps(camera: Boolean, level: Int): List<String> =
+    if (camera && level != 3) listOf("audio", "video") else listOf("audio")
 
 /**
  * [token] goes into every later HELLO. [resumed] means the PC kept our session across a drop.

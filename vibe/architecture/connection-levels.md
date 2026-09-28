@@ -2,6 +2,8 @@
 
 Priority order (1 = best). Mikey always uses the best level currently available and upgrades automatically when a better one appears.
 
+The phone's order of preference is 1, 2, 4, then 3: Bluetooth is the last resort, used only when no USB or Wi‑Fi link works, because it carries narrower audio and no video. The level numbers on the wire stay as in the table.
+
 | | Level | Needs from the user | Bandwidth (practical) | Added latency | Audio | Video |
 |---|---|---|---|---|---|---|
 | **1** | **USB debugging (ADB)** | Developer options → USB debugging on; tap *Allow* once | 100+ Mbps | lowest (~5–15 ms) | PCM 48 kHz lossless | MJPEG up to 1080p30 |
@@ -35,7 +37,7 @@ Priority order (1 = best). Mikey always uses the best level currently available 
 - Send a UDP discovery probe to that interface's broadcast address ([connection-levels.md](connection-levels.md)). The PC answers with its IP and port.
 - Connect TCP, bound to that interface's local address so traffic can't leak onto Wi‑Fi.
 
-**Friendly nudge:** if the phone sees it is USB-connected to a computer (`ACTION_POWER_CONNECTED` with `BATTERY_PLUGGED_USB`) but neither Level 1 nor Level 2 is available after 3 s, the drawer shows a one-line hint *"Turn on USB tethering for a wired connection ›"* that opens the tethering settings page. Shown at most once per plug-in.
+**Friendly nudge:** if the phone sees it is USB-connected to a computer (the sticky `USB_STATE` broadcast says `connected`; not the charger type, which many laptop ports report as a wall charger) but neither Level 1 nor Level 2 is available after 3 s, the drawer shows a one-line hint *"Turn on USB tethering for a wired connection ›"* that opens the tethering settings page. Shown at most once per plug-in.
 
 **Caveats to document:**
 - Android can't programmatically enable tethering; the user toggles it.
@@ -58,7 +60,7 @@ Priority order (1 = best). Mikey always uses the best level currently available 
 **Phone side (`BluetoothTransport`):**
 - Only considers **already-bonded** devices whose Bluetooth class is *Computer*. No scanning → no location permission needed.
 - First time: tries each bonded computer (connect attempt with UUID, 4 s timeout each), caches the MAC that answered. After that: only the cached MAC.
-- Permission `BLUETOOTH_CONNECT` (Android 12+) is requested the first time Level 4 is actually attempted — not at install.
+- Permission `BLUETOOTH_CONNECT` (Android 12+) is asked for together with the mic permission on the first tap, never at install. If the user refuses, Bluetooth is simply skipped.
 
 **PC side (`bt.rs`):**
 - Windows: Winsock `AF_BTH` socket, `bind` to any port, `WSASetService` to register the SDP record.
@@ -75,7 +77,7 @@ The phone does **not** poll everything constantly. Probing is triggered by:
 | Trigger | Probes |
 |---|---|
 | App/service start | All enabled levels, in priority order, in parallel with a short stagger |
-| USB power connected | L1 immediately, again at +1 s, +3 s (ADB reverse takes a moment); L2 on interface change |
+| USB cable to a computer plugged in, or its USB mode changes (`USB_STATE`) | L1 immediately, again at +1 s, +3 s (ADB reverse takes a moment); L2 on interface change |
 | Network interface added/removed (`ConnectivityManager.NetworkCallback` + interface enumeration) | L2, L3 |
 | Bluetooth adapter on / bond change | L4 |
 | Current transport dropped | All levels below and above it |

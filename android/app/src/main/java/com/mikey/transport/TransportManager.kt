@@ -1,5 +1,7 @@
 package com.mikey.transport
 
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -9,22 +11,22 @@ import android.net.LinkProperties
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
-import android.os.BatteryManager
 import android.os.SystemClock
 import android.util.Log
 import com.mikey.settings.Settings
 import java.io.IOException
 import java.net.InetAddress
-import java.net.Socket
 
 /**
  * Picks the best way to the PC that works right now, and knows when a better one may have
- * appeared: USB debugging, then USB tethering, then Wi-Fi (connection-levels.md).
+ * appeared. In order: USB debugging, USB tethering, Wi-Fi, and Bluetooth as the last resort
+ * (connection-levels.md).
  *
- * Probing is driven by events, not timers: a cable plugged in, a network coming or going. The
- * one exception is a cheap tick while a USB cable is in and we're not on a USB level, for the
- * localhost probe and a look for a tether interface. [onCableHint] is told when a cable to a
- * computer has been in for 3 s without either USB level working, so the UI can suggest tethering.
+ * Probing is driven by events, not timers: a cable plugged in, a network coming or going,
+ * Bluetooth turned on or a new pairing. The one exception is a cheap tick while a USB cable is
+ * in and we're not on a USB level, for the localhost probe and a look for a tether interface.
+ * [onCableHint] is told when a cable to a computer has been in for 3 s without either USB level
+ * working, so the UI can suggest tethering.
  */
 class TransportManager(
     private val context: Context,
@@ -32,8 +34,6 @@ class TransportManager(
     private val discovery: Discovery,
     private val onCableHint: (Boolean) -> Unit,
 ) {
-    class Connection(val socket: Socket, val transport: TcpTransport)
-
     private val lock = Object()
 
     /** Which Network each interface belongs to, so sockets can be pinned to it. Guarded by [lock]. */
@@ -64,29 +64,36 @@ class TransportManager(
         }
     }
 
-    private val powerReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) = readUsbPower()
+    /** USB and Bluetooth events. Any of them is a reason to look again. */
+    private val eventReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            when (intent.action) {
+                ACTION_USB_STATE -> readUsbState(intent)
+                else -> wake()
+            }
+        }
     }
 
     fun start() {
         val request = NetworkRequest.Builder().removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET).build()
         context.getSystemService(ConnectivityManager::class.java)?.registerNetworkCallback(request, networkCallback)
-        val power = IntentFilter().apply {
-            addAction(Intent.ACTION_POWER_CONNECTED)
-            addAction(Intent.ACTION_POWER_DISCONNECTED)
+        val events = IntentFilter().apply {
+            addAction(ACTION_USB_STATE)
+            addAction(BluetoothAdapter.ACTION_STATE_CHANGED)
+            addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
         }
-        context.registerReceiver(powerReceiver, power)
-        readUsbPower()
+        // USB_STATE is sticky, so registering hands us where the cable stands right now.
+        readUsbState(context.registerReceiver(eventReceiver, events))
     }
 
     fun stop() {
         context.getSystemService(ConnectivityManager::class.java)?.unregisterNetworkCallback(networkCallback)
-        context.unregisterReceiver(powerReceiver)
+        context.unregisterReceiver(eventReceiver)
         wake()
     }
 
     /** The best way that works right now. Throws when none does. */
-    fun open(): Connection = openFrom(candidates(betterThan = 5))
+    fun open(): Connection = openFrom(candidates(betterThan = NONE))
 
     /** A way better than [level]. Throws when there is none. */
     fun openBetterThan(level: Int): Connection = openFrom(candidates(betterThan = level))
@@ -105,7 +112,7 @@ class TransportManager(
         synchronized(lock) {
             val plugged = usbPluggedAtMs
             val timeout = when {
-                current <= 1 || plugged == 0L -> Long.MAX_VALUE
+                rank(current) == 0 || plugged == 0L -> Long.MAX_VALUE
                 SystemClock.elapsedRealtime() - plugged < EARLY_PROBES_MS -> 1_000L
                 else -> USB_TICK_MS
             }
@@ -133,10 +140,10 @@ class TransportManager(
         reportCableHint(level !in 1..2 && !resting && plugged != 0L && now - plugged >= CABLE_HINT_AFTER_MS)
     }
 
-    private fun openFrom(candidates: Sequence<TcpTransport>): Connection {
+    private fun openFrom(candidates: Sequence<Transport>): Connection {
         for (transport in candidates) {
             try {
-                return Connection(transport.open(), transport)
+                return transport.open()
             } catch (e: IOException) {
                 Log.d(TAG, "Not via level ${transport.level} at ${transport.host}: $e")
             }
@@ -144,11 +151,11 @@ class TransportManager(
         throw IOException("No PC reachable")
     }
 
-    // Lazy on purpose: discovery only broadcasts when nothing cheaper worked.
-    private fun candidates(betterThan: Int): Sequence<TcpTransport> = sequence {
+    // Lazy on purpose: discovery only broadcasts, and Bluetooth only connects, when nothing cheaper worked.
+    private fun candidates(betterThan: Int): Sequence<Transport> = sequence {
         val now = SystemClock.elapsedRealtime()
         val enabled = settings.enabledLevels
-        fun usable(level: Int) = level < betterThan && level in enabled && synchronized(lock) { deadUntilMs[level] } <= now
+        fun usable(level: Int) = rank(level) < rank(betterThan) && level in enabled && synchronized(lock) { deadUntilMs[level] } <= now
 
         if (usable(1)) yield(TcpTransport.adb())
         val interfaces = discovery.interfaces()
@@ -161,6 +168,7 @@ class TransportManager(
             settings.lastPcAddress?.let { yield(TcpTransport.lastKnown(it, networkFor(interfaces, it))) }
             for (pc in found.filter { it.level == 4 }) yield(TcpTransport.discovered(pc, networkFor(pc.via)))
         }
+        if (usable(3)) yieldAll(BluetoothTransport.candidates(context, settings.pcBtAddress))
     }
 
     private fun networkFor(via: NetInterface?): Network? =
@@ -176,9 +184,12 @@ class TransportManager(
         return networkFor(interfaces.firstOrNull { it.contains(ip) })
     }
 
-    private fun readUsbPower() {
-        val battery = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        val usb = battery?.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) == BatteryManager.BATTERY_PLUGGED_USB
+    /**
+     * Whether a USB cable to a computer is in, from USB_STATE. Not from the charger type: many
+     * laptop ports (USB-C, charging ports) make the battery report a wall charger.
+     */
+    private fun readUsbState(intent: Intent?) {
+        val usb = intent?.getBooleanExtra(USB_CONNECTED, false) == true
         synchronized(lock) {
             if (usb && usbPluggedAtMs == 0L) usbPluggedAtMs = SystemClock.elapsedRealtime()
             if (!usb) usbPluggedAtMs = 0L
@@ -198,9 +209,32 @@ class TransportManager(
 
     private companion object {
         const val TAG = "TransportManager"
+
+        /**
+         * Sent on plug, unplug and USB mode changes (debugging, tethering). Hidden in UsbManager,
+         * but every Android version sends it and the system's own USB settings rely on it.
+         */
+        const val ACTION_USB_STATE = "android.hardware.usb.action.USB_STATE"
+        const val USB_CONNECTED = "connected"
+
+        /** "Better than nothing": every level counts. */
+        const val NONE = 0
         const val DEAD_MS = 10_000L
         const val EARLY_PROBES_MS = 4_000L
         const val USB_TICK_MS = 5_000L
         const val CABLE_HINT_AFTER_MS = 3_000L
     }
+}
+
+/**
+ * Where a level stands in the order of preference, 0 being best: USB debugging, USB tethering,
+ * Wi-Fi, then Bluetooth. Bluetooth comes last because it carries narrower audio and no video.
+ * Anything else (like 0 for "no level") ranks below them all.
+ */
+internal fun rank(level: Int): Int = when (level) {
+    1 -> 0
+    2 -> 1
+    4 -> 2
+    3 -> 3
+    else -> 4
 }

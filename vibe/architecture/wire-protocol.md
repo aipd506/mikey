@@ -32,7 +32,7 @@ Receivers **reject any length > 4 MiB** and close the connection (protects again
 - All JSON payloads are UTF-8.
 - `proto`: integer, the major protocol version. Currently `1`.
 - `device_id`, `pc_id`: the random 128-bit id as 32 lowercase hex characters.
-- `caps` (phone): list of what the phone can send right now. `["audio"]` in Phase 1, `["audio", "video"]` from Phase 3.
+- `caps` (phone): list of what the phone can send right now. `["audio"]` in Phase 1, `["audio", "video"]` from Phase 3 (just `["audio"]` over Bluetooth or on a phone without a camera).
 - Receivers ignore JSON fields and frame types they don't know, so either side can add new ones without breaking the other.
 - `resume` is not used yet. The PC resumes a held session by `device_id` within 30 s of a drop and answers `resumed: true`.
 
@@ -70,6 +70,12 @@ Fields:
 - `video.preview`: boolean, whether preview window is active.
 - `video.aspect`: string, `"16:9"`, `"4:3"`, `"1:1"`.
 - `video.fps`: integer, `15` or `30`.
+
+Rules:
+- The phone sends its full audio settings and its mute state right after WELCOME, and again after every link switch. After that only what changed is sent.
+- `video.on: true` from the PC is refused: only the phone can start capture (Android needs the app on screen for that), so the phone answers `{"video":{"on":false}}`. Everything else from the PC is applied and kept on the phone.
+- `video.preview` is PC-only. The phone never shows the video and ignores it.
+- Both sides ignore fields they don't know.
 
 ## Media header (inside AUDIO/VIDEO payloads)
 

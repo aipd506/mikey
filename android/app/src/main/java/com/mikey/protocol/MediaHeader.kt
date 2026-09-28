@@ -7,6 +7,7 @@ object MediaHeader {
     const val SIZE = 14
     const val CODEC_PCM_S16LE = 0x01
     const val CODEC_OPUS = 0x02
+    const val CODEC_JPEG = 0x10
 
     fun write(out: DataOutputStream, seq: Int, captureTimeUs: Long, codec: Int) {
         out.writeInt(seq)

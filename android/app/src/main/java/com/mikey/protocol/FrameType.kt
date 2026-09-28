@@ -4,7 +4,9 @@ package com.mikey.protocol
 object FrameType {
     const val HELLO = 0x00
     const val AUDIO = 0x01
+    const val VIDEO = 0x02
     const val HEARTBEAT = 0x03
+    const val CONTROL = 0x04
     const val BYE = 0x05
     const val WELCOME = 0x10
     const val PENDING = 0x11

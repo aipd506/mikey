@@ -9,10 +9,10 @@ import android.content.Intent
 import com.mikey.MainActivity
 import com.mikey.R
 
-/** The notification Android requires while MikeyService runs. */
+/** The notification Android requires while MikeyService runs: "Mic on · Camera off · USB", with Mute and Stop. */
 class Notifier(private val service: Service) {
 
-    fun build(link: Link): Notification {
+    fun build(state: MikeyState): Notification {
         service.getSystemService(NotificationManager::class.java).createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
@@ -26,35 +26,53 @@ class Notifier(private val service: Service) {
             Intent(service, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE,
         )
-        val stop = PendingIntent.getService(
-            service,
-            0,
-            Intent(service, MikeyService::class.java).setAction(MikeyService.ACTION_STOP),
-            PendingIntent.FLAG_IMMUTABLE,
+        val mic = service.getString(
+            when {
+                !state.micOn -> R.string.notification_mic_off
+                state.muted -> R.string.notification_mic_muted
+                else -> R.string.notification_mic_on
+            },
         )
-        return Notification.Builder(service, CHANNEL_ID)
+        val camera = service.getString(if (state.camera.on) R.string.notification_camera_on else R.string.notification_camera_off)
+        val builder = Notification.Builder(service, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_mic)
             .setContentTitle(service.getString(R.string.app_name))
-            .setContentText(service.getString(textFor(link)))
+            .setContentText(service.getString(R.string.notification_text, mic, camera, service.getString(linkText(state.link))))
             .setContentIntent(open)
             .setOngoing(true)
-            .addAction(Notification.Action.Builder(null, service.getString(R.string.notification_stop), stop).build())
-            .build()
+        if (state.micOn) {
+            builder.addAction(action(if (state.muted) R.string.notification_unmute else R.string.notification_mute, if (state.muted) MikeyService.ACTION_UNMUTE else MikeyService.ACTION_MUTE, 1))
+        }
+        return builder.addAction(action(R.string.notification_stop, MikeyService.ACTION_STOP, 2)).build()
     }
 
     /** Replaces the notification's text. Shows nothing if the user turned notifications off. */
-    fun show(link: Link) {
-        service.getSystemService(NotificationManager::class.java).notify(ID, build(link))
+    fun show(state: MikeyState) {
+        service.getSystemService(NotificationManager::class.java).notify(ID, build(state))
     }
 
-    private fun textFor(link: Link) = when (link) {
-        Link.Searching -> R.string.notification_mic_on_searching
-        Link.Waiting -> R.string.notification_mic_on_waiting
-        is Link.Live -> if (link.level == 1) R.string.notification_mic_on_usb else R.string.notification_mic_on_wifi
+    private fun action(label: Int, action: String, requestCode: Int): Notification.Action {
+        val intent = PendingIntent.getService(
+            service,
+            requestCode,
+            Intent(service, MikeyService::class.java).setAction(action),
+            PendingIntent.FLAG_IMMUTABLE,
+        )
+        return Notification.Action.Builder(null, service.getString(label), intent).build()
+    }
+
+    private fun linkText(link: Link) = when (link) {
+        Link.Searching -> R.string.notification_link_searching
+        Link.Waiting -> R.string.notification_link_waiting
+        is Link.Live -> when (link.level) {
+            1, 2 -> R.string.notification_link_usb
+            3 -> R.string.notification_link_bluetooth
+            else -> R.string.notification_link_wifi
+        }
         is Link.Refused -> when (link.reason) {
-            "denied" -> R.string.notification_mic_on_denied
-            "version" -> R.string.notification_mic_on_version
-            else -> R.string.notification_mic_on_refused
+            "denied" -> R.string.notification_link_denied
+            "version" -> R.string.notification_link_version
+            else -> R.string.notification_link_refused
         }
     }
 
