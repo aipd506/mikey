@@ -5,6 +5,7 @@ pub mod config;
 pub mod flyout;
 #[cfg(windows)]
 pub mod instance;
+pub mod launch;
 pub mod notify;
 pub mod protocol;
 pub mod session;

@@ -49,6 +49,7 @@ pub const DT_VCENTER: u32 = 0x00000004;
 pub const DT_NOPREFIX: u32 = 0x00000800;
 pub const DIB_RGB_COLORS: u32 = 0;
 pub const COLORONCOLOR: i32 = 3;
+pub const IDC_ARROW: usize = 32512;
 pub const BI_RGB: u32 = 0;
 
 #[repr(C)]

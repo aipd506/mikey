@@ -14,6 +14,10 @@ use std::thread;
 use std::time::Duration;
 
 fn main() {
+    // First thing, so Windows drops the busy pointer it shows while Mikey starts.
+    #[cfg(windows)]
+    mikey::launch::end_busy_pointer();
+
     let args: Vec<String> = env::args().collect();
     let test_mode = args.iter().any(|a| a == "--test-tone");
     #[cfg(windows)]
