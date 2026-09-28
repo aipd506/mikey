@@ -36,6 +36,7 @@ pub const WM_PAINT: u32 = 0x000F;
 pub const WM_ACTIVATE: u32 = 0x0006;
 pub const WA_INACTIVE: usize = 0;
 pub const WM_TIMER: u32 = 0x0113;
+pub const WM_KILLFOCUS: u32 = 0x0008;
 pub const WM_MOUSEMOVE: u32 = 0x0200;
 pub const WM_LBUTTONDOWN: u32 = 0x0201;
 pub const WM_LBUTTONUP: u32 = 0x0202;
@@ -45,6 +46,7 @@ pub const VK_ESCAPE: usize = 0x1B;
 pub const DT_SINGLELINE: u32 = 0x00000020;
 pub const DT_CENTER: u32 = 0x00000001;
 pub const DT_VCENTER: u32 = 0x00000004;
+pub const DT_NOPREFIX: u32 = 0x00000800;
 pub const DIB_RGB_COLORS: u32 = 0;
 pub const BI_RGB: u32 = 0;
 
@@ -65,6 +67,7 @@ pub struct POINT {
 }
 
 #[repr(C)]
+#[derive(Clone, Copy, Default)]
 pub struct PAINTSTRUCT {
     pub hdc: HDC,
     pub fErase: i32,

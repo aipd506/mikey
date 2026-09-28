@@ -2,7 +2,9 @@
 
 #![cfg(windows)]
 
+pub mod gdiplus;
 pub mod types;
+pub use gdiplus::*;
 pub use types::*;
 
 use std::ffi::c_void;
@@ -36,6 +38,7 @@ extern "system" {
         flags: u32,
     ) -> i32;
     pub fn SetForegroundWindow(hwnd: HWND) -> i32;
+    pub fn GetForegroundWindow() -> HWND;
     pub fn BringWindowToTop(hwnd: HWND) -> i32;
     pub fn SetFocus(hwnd: HWND) -> HWND;
     pub fn GetCursorPos(point: *mut POINT) -> i32;

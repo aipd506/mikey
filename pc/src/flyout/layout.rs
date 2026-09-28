@@ -7,12 +7,18 @@ use super::win32;
 use crate::session::SessionManager;
 use crate::video::VideoPipeline;
 
-pub fn compute_flyout_height(session_mgr: &SessionManager, video_pipe: &VideoPipeline) -> i32 {
-    let mut h = if video_pipe.is_camera_on() && !video_pipe.is_preview_visible() {
-        FLYOUT_HEIGHT_EXPANDED
-    } else {
-        FLYOUT_HEIGHT_COLLAPSED
-    };
+pub fn compute_flyout_height(
+    session_mgr: &SessionManager,
+    video_pipe: &VideoPipeline,
+    settings_expanded: bool,
+) -> i32 {
+    let mut h = FLYOUT_HEIGHT_COLLAPSED;
+    if settings_expanded {
+        h += 80;
+    }
+    if video_pipe.is_camera_on() && !video_pipe.is_preview_visible() {
+        h += 110;
+    }
     if !session_mgr.list_pending().is_empty() {
         h += 32;
     }
@@ -34,6 +40,41 @@ pub fn update_window_clip_region(hwnd: win32::HWND, height: i32) {
             FLYOUT_CORNER_RADIUS * 2,
         );
         win32::SetWindowRgn(hwnd, rgn, 1);
+    }
+}
+
+pub fn create_flyout_hwnd() -> win32::HWND {
+    let class_name = to_wide("MikeyFlyoutCompanionClass");
+    unsafe {
+        let wc = win32::WNDCLASSEXW {
+            cbSize: std::mem::size_of::<win32::WNDCLASSEXW>() as u32,
+            style: 0x0001 | 0x0002,
+            lpfnWndProc: Some(super::wndproc::flyout_wndproc),
+            cbClsExtra: 0,
+            cbWndExtra: 0,
+            hInstance: 0,
+            hIcon: 0,
+            hCursor: 0,
+            hbrBackground: 0,
+            lpszMenuName: std::ptr::null(),
+            lpszClassName: class_name.as_ptr(),
+            hIconSm: 0,
+        };
+        win32::RegisterClassExW(&wc);
+        win32::CreateWindowExW(
+            win32::WS_EX_TOOLWINDOW | win32::WS_EX_TOPMOST,
+            class_name.as_ptr(),
+            to_wide("Mikey").as_ptr(),
+            win32::WS_POPUP,
+            -2000,
+            -2000,
+            FLYOUT_WIDTH,
+            FLYOUT_HEIGHT_COLLAPSED,
+            0,
+            0,
+            0,
+            std::ptr::null_mut(),
+        )
     }
 }
 

@@ -2,6 +2,7 @@
 
 #![cfg(windows)]
 
+pub use super::palette::*;
 pub use super::win32;
 
 #[inline]
@@ -13,13 +14,19 @@ pub fn to_wide(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(std::iter::once(0)).collect()
 }
 
-// Design system colors (vibe/rules/design-language.md)
-pub use super::palette::*;
-
 pub const FLYOUT_WIDTH: i32 = 300;
-pub const FLYOUT_HEIGHT_COLLAPSED: i32 = 215;
-pub const FLYOUT_HEIGHT_EXPANDED: i32 = 330;
-pub const FLYOUT_CORNER_RADIUS: i32 = 12;
+pub const FLYOUT_HEIGHT_COLLAPSED: i32 = 254;
+pub const FLYOUT_HEIGHT_EXPANDED: i32 = 360;
+pub const FLYOUT_CORNER_RADIUS: i32 = 16;
+
+#[derive(Clone, Copy)]
+pub struct FlyoutFonts {
+    pub title: win32::HFONT,
+    pub heading: win32::HFONT,
+    pub body: win32::HFONT,
+    pub body_bold: win32::HFONT,
+    pub icon: win32::HFONT,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FlyoutButton {
@@ -29,8 +36,8 @@ pub enum FlyoutButton {
     MicToggle,
     MuteToggle,
     SetupVirtualMic,
-    TogglePreview, // Persistent camera preview option (open/toggle preview window)
-    FlipCamera,    // Flip front/back lens remotely
+    TogglePreview,
+    FlipCamera,
     NsSlider,
     ToggleAec,
     ToggleGate,

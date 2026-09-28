@@ -8,38 +8,28 @@ use std::io::Cursor;
 fn test_decoded_frame_conversions() {
     let width = 2;
     let height = 2;
-    // 2x2 image with RGB values:
-    // Pixel 0: (255, 0, 0) - Red
-    // Pixel 1: (0, 255, 0) - Green
-    // Pixel 2: (0, 0, 255) - Blue
-    // Pixel 3: (255, 255, 255) - White
     let rgb = vec![255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 255];
     let frame = DecodedFrame::new(width, height, rgb);
 
     // Test BGR conversion for Softcam
     let bgr = frame.to_bgr();
     assert_eq!(bgr.len(), 12);
-    // Pixel 0: B=0, G=0, R=255
     assert_eq!(&bgr[0..3], &[0, 0, 255]);
-    // Pixel 1: B=0, G=255, R=0
     assert_eq!(&bgr[3..6], &[0, 255, 0]);
-    // Pixel 2: B=255, G=0, R=0
     assert_eq!(&bgr[6..9], &[255, 0, 0]);
-    // Pixel 3: B=255, G=255, R=255
     assert_eq!(&bgr[9..12], &[255, 255, 255]);
 
     // Test 32-bit RGB conversion for minifb (0x00RRGGBB)
     let rgb32 = frame.to_rgb32();
     assert_eq!(rgb32.len(), 4);
-    assert_eq!(rgb32[0], 0x00FF0000); // Red
-    assert_eq!(rgb32[1], 0x0000FF00); // Green
-    assert_eq!(rgb32[2], 0x000000FF); // Blue
-    assert_eq!(rgb32[3], 0x00FFFFFF); // White
+    assert_eq!(rgb32[0], 0x00FF0000);
+    assert_eq!(rgb32[1], 0x0000FF00);
+    assert_eq!(rgb32[2], 0x000000FF);
+    assert_eq!(rgb32[3], 0x00FFFFFF);
 }
 
 #[test]
 fn test_letterboxing() {
-    // 4:3 image (4x3) letterboxed into 16:9 target (16x9)
     let src_w = 4;
     let src_h = 3;
     let rgb = vec![0xFF; src_w * src_h * 3];
@@ -57,7 +47,6 @@ fn test_placeholder_generation() {
     assert_eq!(placeholder.width, 1280);
     assert_eq!(placeholder.height, 720);
     assert_eq!(placeholder.rgb.len(), 1280 * 720 * 3);
-    // Background is #111111
     assert_eq!(placeholder.rgb[0], 0x11);
     assert_eq!(placeholder.rgb[1], 0x11);
     assert_eq!(placeholder.rgb[2], 0x11);

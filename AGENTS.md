@@ -20,7 +20,7 @@ The brain in [`vibe/`](vibe/index.md) is the absolute source of truth for every 
 ## Project Overview & Ownership
 
 - **Project in one line**: Android app (Kotlin/Compose) + per-user PC tray app (Rust, binary `mikey`) that turns a phone into a mic and webcam for a PC over four automatic connection levels:
-  `1 USB debugging (adb reverse)` > `2 USB tethering` > `3 Bluetooth RFCOMM (audio only)` > `4 Wi-Fi`.
+  `1 USB debugging (adb reverse)` > `2 USB tethering` > `3 Wi-Fi` > `4 Bluetooth RFCOMM (audio only)`.
 - **Ownership boundaries**:
   - `android/` — repo owner's domain.
   - `pc/` — separate contributor's domain. **Do not modify or add code in `pc/` unless explicitly requested by the user.**

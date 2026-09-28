@@ -6,8 +6,8 @@ Priority order (1 = best). Mikey always uses the best level currently available 
 |---|---|---|---|---|---|---|
 | **1** | **USB debugging (ADB)** | Developer options → USB debugging on; tap *Allow* once | 100+ Mbps | lowest (~5–15 ms) | PCM 48 kHz lossless | MJPEG up to 1080p30 |
 | **2** | **USB tethering** | Toggle USB tethering each time it's plugged in | 50–300 Mbps | low (~5–20 ms) | PCM 48 kHz lossless | MJPEG up to 1080p30 |
-| **3** | **Bluetooth** | Pair phone & PC once in OS settings | ~0.5–1.5 Mbps | medium (~40–120 ms) | Opus 32–48 kbps | **Not supported** |
-| **4** | **Wi‑Fi / LAN** | Same network (or PC on phone's hotspot); allow once | 10–300 Mbps, variable | variable (~10–80 ms + jitter) | Opus 96 kbps, 10 ms (raw PCM optional) | MJPEG 720p30, adaptive |
+| **3** | **Wi‑Fi / LAN** | Same network (or PC on phone's hotspot); allow once | 10–300 Mbps, variable | variable (~10–80 ms + jitter) | Opus 96 kbps, 10 ms (raw PCM optional) | MJPEG 720p30, adaptive |
+| **4** | **Bluetooth** | Pair phone & PC once in OS settings | ~0.5–1.5 Mbps | medium (~40–120 ms) | Opus 32–48 kbps | **Not supported** |
 
 ## Level 1 — USB debugging (ADB)
 
@@ -40,26 +40,9 @@ Priority order (1 = best). Mikey always uses the best level currently available 
 **Caveats to document:**
 - Android can't programmatically enable tethering; the user toggles it.
 - The PC may start routing internet traffic through the phone. Android's USB tethering shares whatever the phone is using upstream — if the phone is on Wi‑Fi, that's Wi‑Fi (no mobile data cost); if not, it's mobile data. Document this; the phone app shows a one-time tip.
-- Some carriers disable tethering on certain plans. Level 1 or 4 still works.
+- Some carriers disable tethering on certain plans. Level 1 or 3 still works.
 
-## Level 3 — Bluetooth
-
-**How it works.** The PC runs an RFCOMM server and publishes an SDP record with Mikey's service UUID. The phone connects to the paired PC using `createRfcommSocketToServiceRecord(MIKEY_UUID)` (secure, bonded). The result is a byte stream that carries the same protocol.
-
-**Phone side (`BluetoothTransport`):**
-- Only considers **already-bonded** devices whose Bluetooth class is *Computer*. No scanning → no location permission needed.
-- First time: tries each bonded computer (connect attempt with UUID, 4 s timeout each), caches the MAC that answered. After that: only the cached MAC.
-- Permission `BLUETOOTH_CONNECT` (Android 12+) is requested the first time Level 3 is actually attempted — not at install.
-
-**PC side (`bt.rs`):**
-- Windows: Winsock `AF_BTH` socket, `bind` to any port, `WSASetService` to register the SDP record.
-- Linux: BlueZ over D-Bus (`ProfileManager1.RegisterProfile`) — uses the `bluer` crate, which requires a small Tokio runtime **confined to this module's thread**.
-
-**Media profile on Level 3:** audio only, Opus 32 kbps (48 kbps if link quality allows), 20 ms frames (larger frames suit Bluetooth's packet timing). The camera half shows the "unavailable" state; tapping it explains *"Camera isn't available over Bluetooth. Connect with USB or Wi‑Fi."*
-
-**Caveats:** throughput drops if the PC is also streaming to Bluetooth headphones on the same radio; some PC Bluetooth stacks (especially cheap dongles) have unreliable RFCOMM. Level 3 is a fallback, not a flagship.
-
-## Level 4 — Wi‑Fi / LAN
+## Level 3 — Wi‑Fi / LAN
 
 **How it works.** The phone broadcasts a UDP discovery probe on its Wi‑Fi (or hotspot) interface; the PC answers; the phone opens a TCP session. This also covers **the PC being connected to the phone's hotspot**.
 
@@ -67,6 +50,23 @@ Priority order (1 = best). Mikey always uses the best level currently available 
 - A `WifiManager.WifiLock` in low-latency mode (API 29+, high-perf below) is held while streaming, to stop Wi‑Fi power-save from adding latency spikes.
 - Manual PC address (Advanced) is used when broadcast is blocked (client isolation, corporate networks).
 - The PC installer adds a firewall rule for TCP 7653 / UDP 7654 on **private** networks only.
+
+## Level 4 — Bluetooth
+
+**How it works.** The PC runs an RFCOMM server and publishes an SDP record with Mikey's service UUID. The phone connects to the paired PC using `createRfcommSocketToServiceRecord(MIKEY_UUID)` (secure, bonded). The result is a byte stream that carries the same protocol.
+
+**Phone side (`BluetoothTransport`):**
+- Only considers **already-bonded** devices whose Bluetooth class is *Computer*. No scanning → no location permission needed.
+- First time: tries each bonded computer (connect attempt with UUID, 4 s timeout each), caches the MAC that answered. After that: only the cached MAC.
+- Permission `BLUETOOTH_CONNECT` (Android 12+) is requested the first time Level 4 is actually attempted — not at install.
+
+**PC side (`bt.rs`):**
+- Windows: Winsock `AF_BTH` socket, `bind` to any port, `WSASetService` to register the SDP record.
+- Linux: BlueZ over D-Bus (`ProfileManager1.RegisterProfile`) — uses the `bluer` crate, which requires a small Tokio runtime **confined to this module's thread**.
+
+**Media profile on Level 4:** audio only, Opus 32 kbps (48 kbps if link quality allows), 20 ms frames (larger frames suit Bluetooth's packet timing). The camera half shows the "unavailable" state; tapping it explains *"Camera isn't available over Bluetooth. Connect with USB or Wi‑Fi."*
+
+**Caveats:** throughput drops if the PC is also streaming to Bluetooth headphones on the same radio; some PC Bluetooth stacks (especially cheap dongles) have unreliable RFCOMM. Level 4 is a fallback, not a flagship.
 
 ## When the phone probes (event-driven, battery-friendly)
 
@@ -76,8 +76,8 @@ The phone does **not** poll everything constantly. Probing is triggered by:
 |---|---|
 | App/service start | All enabled levels, in priority order, in parallel with a short stagger |
 | USB power connected | L1 immediately, again at +1 s, +3 s (ADB reverse takes a moment); L2 on interface change |
-| Network interface added/removed (`ConnectivityManager.NetworkCallback` + interface enumeration) | L2, L4 |
-| Bluetooth adapter on / bond change | L3 |
+| Network interface added/removed (`ConnectivityManager.NetworkCallback` + interface enumeration) | L2, L3 |
+| Bluetooth adapter on / bond change | L4 |
 | Current transport dropped | All levels below and above it |
 | Every 5 s while on L2–L4 and USB is plugged in | L1 only (localhost connect — negligible cost) |
 

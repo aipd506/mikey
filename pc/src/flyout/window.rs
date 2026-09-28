@@ -4,7 +4,6 @@
 
 use super::layout::*;
 use super::types::*;
-use super::wndproc::flyout_wndproc;
 use crate::audio::pipeline::JitterBuffer;
 use crate::session::SessionManager;
 use crate::video::VideoPipeline;
@@ -24,10 +23,13 @@ pub struct FlyoutWindow {
     pub(crate) aec_enabled: bool,
     pub(crate) dsp_gate_enabled: bool,
     pub(crate) shown_at: Option<Instant>,
+    pub(crate) last_hidden_at: Option<Instant>,
     pub(crate) last_toggled_at: Instant,
     pub(crate) hover_btn: Option<FlyoutButton>,
     pub(crate) is_dragging_ns: bool,
+    pub(crate) settings_expanded: bool,
     pub(crate) button_rects: Vec<(FlyoutButton, win32::RECT)>,
+    pub(crate) gdiplus: Option<win32::Gdiplus>,
 }
 
 impl FlyoutWindow {
@@ -37,43 +39,7 @@ impl FlyoutWindow {
         jitter_buffer: Arc<JitterBuffer>,
         running: Arc<AtomicBool>,
     ) -> Box<Self> {
-        let class_name = to_wide("MikeyFlyoutCompanionClass");
-
-        unsafe {
-            let wc = win32::WNDCLASSEXW {
-                cbSize: std::mem::size_of::<win32::WNDCLASSEXW>() as u32,
-                style: 0x0001 | 0x0002,
-                lpfnWndProc: Some(flyout_wndproc),
-                cbClsExtra: 0,
-                cbWndExtra: 0,
-                hInstance: 0,
-                hIcon: 0,
-                hCursor: 0,
-                hbrBackground: 0,
-                lpszMenuName: std::ptr::null(),
-                lpszClassName: class_name.as_ptr(),
-                hIconSm: 0,
-            };
-            win32::RegisterClassExW(&wc);
-        }
-
-        let hwnd = unsafe {
-            win32::CreateWindowExW(
-                win32::WS_EX_TOOLWINDOW | win32::WS_EX_TOPMOST,
-                class_name.as_ptr(),
-                to_wide("Mikey").as_ptr(),
-                win32::WS_POPUP,
-                -2000,
-                -2000,
-                FLYOUT_WIDTH,
-                FLYOUT_HEIGHT_COLLAPSED,
-                0,
-                0,
-                0,
-                std::ptr::null_mut(),
-            )
-        };
-
+        let hwnd = create_flyout_hwnd();
         update_window_clip_region(hwnd, FLYOUT_HEIGHT_COLLAPSED);
 
         let mut flyout = Box::new(Self {
@@ -88,10 +54,13 @@ impl FlyoutWindow {
             aec_enabled: true,
             dsp_gate_enabled: false,
             shown_at: None,
+            last_hidden_at: None,
             last_toggled_at: Instant::now() - std::time::Duration::from_secs(10),
             hover_btn: None,
             is_dragging_ns: false,
+            settings_expanded: false,
             button_rects: Vec::new(),
+            gdiplus: win32::Gdiplus::init(),
         });
 
         let raw_ptr: *mut FlyoutWindow = &mut *flyout;
@@ -107,11 +76,26 @@ impl FlyoutWindow {
     }
 
     pub fn current_height(&self) -> i32 {
-        compute_flyout_height(&self.session_manager, &self.video_pipeline)
+        compute_flyout_height(
+            &self.session_manager,
+            &self.video_pipeline,
+            self.settings_expanded,
+        )
     }
 
     pub fn update_window_region(&self, height: i32) {
         update_window_clip_region(self.hwnd, height);
+        unsafe {
+            win32::SetWindowPos(
+                self.hwnd,
+                0,
+                0,
+                0,
+                FLYOUT_WIDTH,
+                height,
+                win32::SWP_NOMOVE | win32::SWP_NOZORDER | win32::SWP_NOACTIVATE,
+            );
+        }
     }
 
     pub fn hide(&mut self) {
@@ -121,6 +105,7 @@ impl FlyoutWindow {
         }
         self.visible = false;
         self.shown_at = None;
+        self.last_hidden_at = Some(Instant::now());
         self.is_dragging_ns = false;
         self.hover_btn = None;
     }
@@ -131,15 +116,19 @@ impl FlyoutWindow {
             return;
         }
         self.last_toggled_at = now;
-
         if self.visible {
             self.hide();
             return;
         }
 
+        if let Some(hidden) = self.last_hidden_at {
+            if hidden.elapsed().as_millis() < 400 {
+                return;
+            }
+        }
+
         let height = self.current_height();
         let (x, y) = calculate_flyout_position(tray_x, tray_y, tray_w, tray_h, height);
-
         update_window_clip_region(self.hwnd, height);
 
         unsafe {

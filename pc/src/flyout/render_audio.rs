@@ -1,19 +1,22 @@
-//! Microphone status, mute toggle button, and live VU meter rendering.
-//! Ultra-compact, visual-first audio controls.
+//! Microphone card, Lucide vector mic, live VU meter, and mute pill.
+//! Clean, ultra-minimal dark mode card.
 
 #![cfg(windows)]
 
 use super::gdi::*;
+use super::heroicons::*;
 use super::palette::*;
 use super::types::*;
+use super::win32::{self, Gdiplus};
 use super::window::FlyoutWindow;
+use std::ffi::c_void;
 
 pub fn render_mic_section(
     dc: win32::HDC,
     flyout: &mut FlyoutWindow,
-    font_heading: win32::HFONT,
-    font_body_bold: win32::HFONT,
-    font_icon: win32::HFONT,
+    g_opt: Option<&Gdiplus>,
+    graphics: *mut c_void,
+    fonts: &FlyoutFonts,
     y: i32,
 ) -> i32 {
     let is_active = flyout.session_manager.is_active();
@@ -23,115 +26,142 @@ pub fn render_mic_section(
         flyout.jitter_buffer.get_peak_level()
     };
 
-    let (mic_label, mic_glyph, mic_color, label_color) = if flyout.is_muted {
-        ("Mic Muted", "\u{E74F}", COLOR_ALERT_RED, COLOR_ALERT_RED)
+    let card_w = FLYOUT_WIDTH - 28;
+    let card_h = 56;
+    let card_r = 14.0;
+    let card_left = 14;
+
+    if let Some(g) = g_opt {
+        draw_smooth_pill(
+            g,
+            graphics,
+            card_left as f32,
+            y as f32,
+            card_w as f32,
+            card_h as f32,
+            card_r,
+            ARGB_PILL,
+            ARGB_BORDER,
+        );
+    }
+
+    let mic_color = if flyout.is_muted {
+        ARGB_ALERT_RED
     } else if is_active {
-        ("Microphone", "\u{E720}", COLOR_MIC_ON, COLOR_TEXT_PRIMARY)
+        ARGB_MIC_ON
     } else {
-        (
-            "Microphone",
-            "\u{E720}",
-            COLOR_ICON_OFF,
-            COLOR_TEXT_SECONDARY,
-        )
+        ARGB_ICON_OFF
     };
+    let cy = (y + card_h / 2) as f32;
 
-    // Mic icon
+    if let Some(g) = g_opt {
+        draw_hero_mic(g, graphics, 36.0, cy, mic_color, flyout.is_muted);
+    }
+
     draw_text(
         dc,
-        font_icon,
-        mic_color,
-        14,
-        y,
-        32,
-        y + 22,
-        mic_glyph,
-        DT_CENTER_V,
-    );
-
-    // Mic label
-    draw_text(
-        dc,
-        font_heading,
-        label_color,
-        36,
-        y,
-        190,
-        y + 22,
-        mic_label,
+        fonts.heading,
+        COLOR_TEXT_PRIMARY,
+        58,
+        y + 10,
+        180,
+        y + 26,
+        "Microphone",
         0,
     );
 
-    // Mute button pill
-    let mute_w = 60;
-    let mute_rect = rect(FLYOUT_WIDTH - 14 - mute_w, y, FLYOUT_WIDTH - 14, y + 22);
+    let vu_left = 58.0;
+    let vu_w = 110.0;
+    let vu_h = 4.0;
+    let vu_r = 2.0;
+    let vu_y = (y + 32) as f32;
+
+    if is_active && !flyout.is_muted {
+        if let Some(g) = g_opt {
+            draw_smooth_pill(g, graphics, vu_left, vu_y, vu_w, vu_h, vu_r, ARGB_BORDER, 0);
+            if peak_level > 0.01 {
+                let active_w = (vu_w * peak_level).clamp(vu_r * 2.0, vu_w);
+                let bar_color = if peak_level > 0.95 {
+                    ARGB_ALERT_RED
+                } else if peak_level > 0.75 {
+                    ARGB_STATUS_WAIT
+                } else {
+                    ARGB_MIC_ON
+                };
+                draw_smooth_pill(
+                    g, graphics, vu_left, vu_y, active_w, vu_h, vu_r, bar_color, 0,
+                );
+            }
+        }
+    } else {
+        let mic_status = if flyout.is_muted {
+            "Muted"
+        } else if is_active {
+            "Active"
+        } else {
+            "Virtual Mic Ready"
+        };
+        let status_color = if flyout.is_muted {
+            COLOR_ALERT_RED
+        } else {
+            COLOR_TEXT_SECONDARY
+        };
+        draw_text(
+            dc,
+            fonts.body,
+            status_color,
+            58,
+            y + 28,
+            180,
+            y + 44,
+            mic_status,
+            0,
+        );
+    }
+
+    let btn_w = 60;
+    let btn_h = 26;
+    let btn_r = 13.0;
+    let btn_y = y + (card_h - btn_h) / 2;
+    let btn_left = card_left + card_w - 10 - btn_w;
+    let mute_rect = rect(btn_left, btn_y, btn_left + btn_w, btn_y + btn_h);
     flyout
         .button_rects
         .push((FlyoutButton::MuteToggle, mute_rect));
     let mute_hover = flyout.hover_btn == Some(FlyoutButton::MuteToggle);
 
-    let (mute_bg, mute_bd, mute_fg) = if flyout.is_muted {
-        (COLOR_ALERT_RED, COLOR_ALERT_RED, COLOR_TEXT_PRIMARY)
+    let (m_bg, m_bd, m_fg, m_text) = if flyout.is_muted {
+        (ARGB_ALERT_RED, ARGB_ALERT_RED, COLOR_TEXT_PRIMARY, "Unmute")
     } else if mute_hover {
-        (COLOR_BTN_HOVER, COLOR_BTN_BORDER_HI, COLOR_TEXT_PRIMARY)
+        (ARGB_PILL_HOVER, ARGB_BORDER_HI, COLOR_TEXT_PRIMARY, "Mute")
     } else {
-        (COLOR_BTN_BG, COLOR_BTN_BORDER, COLOR_TEXT_SECONDARY)
+        (ARGB_SURFACE, ARGB_BORDER, COLOR_TEXT_SECONDARY, "Mute")
     };
 
-    draw_pill_bg(
-        dc,
-        mute_rect.left,
-        mute_rect.top,
-        mute_rect.right,
-        mute_rect.bottom,
-        mute_bg,
-        mute_bd,
-    );
-
+    if let Some(g) = g_opt {
+        draw_smooth_pill(
+            g,
+            graphics,
+            btn_left as f32,
+            btn_y as f32,
+            btn_w as f32,
+            btn_h as f32,
+            btn_r,
+            m_bg,
+            m_bd,
+        );
+    }
     draw_text(
         dc,
-        font_body_bold,
-        mute_fg,
-        mute_rect.left,
-        mute_rect.top,
-        mute_rect.right,
-        mute_rect.bottom,
-        if flyout.is_muted { "Unmute" } else { "Mute" },
+        fonts.body_bold,
+        m_fg,
+        btn_left,
+        btn_y,
+        btn_left + btn_w,
+        btn_y + btn_h,
+        m_text,
         DT_CENTER_V,
     );
 
-    // VU meter bar (integrated 4px line)
-    let vu_top = y + 26;
-    let vu_w = FLYOUT_WIDTH - 28;
-    draw_pill_bg(
-        dc,
-        14,
-        vu_top,
-        14 + vu_w,
-        vu_top + 4,
-        COLOR_BORDER,
-        COLOR_BORDER,
-    );
-
-    if is_active && !flyout.is_muted && peak_level > 0.01 {
-        let active_w = ((vu_w as f32 * peak_level) as i32).clamp(4, vu_w);
-        let bar_color = if peak_level > 0.85 {
-            COLOR_ALERT_RED
-        } else if peak_level > 0.65 {
-            COLOR_STATUS_WAIT
-        } else {
-            COLOR_MIC_ON
-        };
-        let fill = unsafe { win32::CreateSolidBrush(bar_color) };
-        let fill_p = unsafe { win32::CreatePen(win32::PS_SOLID, 1, bar_color) };
-        unsafe {
-            win32::SelectObject(dc, fill);
-            win32::SelectObject(dc, fill_p);
-            win32::RoundRect(dc, 14, vu_top, 14 + active_w, vu_top + 4, 3, 3);
-            win32::DeleteObject(fill);
-            win32::DeleteObject(fill_p);
-        }
-    }
-
-    vu_top + 4 + 10
+    y + card_h + 8
 }

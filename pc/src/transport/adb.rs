@@ -25,12 +25,9 @@ pub fn check_adb() -> io::Result<String> {
         .map_err(|e| Error::new(ErrorKind::NotFound, format!("adb binary not found: {}", e)))?;
 
     if !output.status.success() {
-        return Err(Error::other(format!(
-            "adb version failed: {}",
-            String::from_utf8_lossy(&output.stderr)
-        )));
+        let err = String::from_utf8_lossy(&output.stderr);
+        return Err(Error::other(format!("adb version failed: {}", err)));
     }
-
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
 
@@ -42,27 +39,27 @@ pub fn list_devices() -> io::Result<Vec<String>> {
         .map_err(|e| Error::new(ErrorKind::NotFound, format!("adb failed: {}", e)))?;
 
     if !output.status.success() {
-        return Err(Error::other(format!(
-            "adb devices failed: {}",
-            String::from_utf8_lossy(&output.stderr)
-        )));
+        let err = String::from_utf8_lossy(&output.stderr);
+        return Err(Error::other(format!("adb devices failed: {}", err)));
     }
 
     let text = String::from_utf8_lossy(&output.stdout);
-    let mut devices = Vec::new();
-
-    for line in text.lines().skip(1) {
-        let parts: Vec<&str> = line.split_whitespace().collect();
-        if parts.len() >= 2 && parts[1] == "device" {
-            devices.push(parts[0].to_string());
-        }
-    }
-
+    let devices = text
+        .lines()
+        .skip(1)
+        .filter_map(|l| {
+            let parts: Vec<&str> = l.split_whitespace().collect();
+            if parts.len() >= 2 && parts[1] == "device" {
+                Some(parts[0].to_string())
+            } else {
+                None
+            }
+        })
+        .collect();
     Ok(devices)
 }
 
 /// Parses a single device entry from an `adb track-devices` line.
-/// Returns (serial, state) if the line has at least two whitespace-separated fields.
 pub fn parse_track_device_line(line: &str) -> Option<(&str, &str)> {
     let parts: Vec<&str> = line.split_whitespace().collect();
     if parts.len() >= 2 {
@@ -72,8 +69,7 @@ pub fn parse_track_device_line(line: &str) -> Option<(&str, &str)> {
     }
 }
 
-/// Sets up `adb reverse tcp:{port} tcp:{port}` for all connected authorized devices,
-/// or for a specific device serial if specified.
+/// Sets up `adb reverse tcp:{port} tcp:{port}` for all connected authorized devices.
 pub fn setup_adb_reverse(serial: Option<&str>, port: u16) -> io::Result<()> {
     let mut cmd = new_adb_command();
     if let Some(s) = serial {
@@ -94,18 +90,16 @@ pub fn setup_adb_reverse(serial: Option<&str>, port: u16) -> io::Result<()> {
             err_msg.trim()
         )));
     }
-
     Ok(())
 }
 
-/// Runs a background loop that monitors for connected Android devices and automatically
-/// ensures ADB reverse port forwarding is configured when plugged in via `adb track-devices`.
+/// Runs a background loop that monitors for connected Android devices via `adb track-devices`.
 pub fn start_adb_watcher(port: u16, running: Arc<AtomicBool>) -> thread::JoinHandle<()> {
     thread::spawn(move || {
         let mut configured_devices: HashSet<String> = HashSet::new();
 
         while running.load(Ordering::Relaxed) {
-            let mut child = match Command::new("adb")
+            let mut child = match new_adb_command()
                 .arg("track-devices")
                 .stdout(Stdio::piped())
                 .stderr(Stdio::null())
@@ -142,16 +136,11 @@ pub fn start_adb_watcher(port: u16, running: Arc<AtomicBool>) -> thread::JoinHan
 
                 if let Some((serial, state)) = parse_track_device_line(&line) {
                     if state == "device" {
-                        if !configured_devices.contains(serial) {
-                            match setup_adb_reverse(Some(serial), port) {
-                                Ok(()) => {
-                                    println!("[adb] Reversed tcp:{} on device {}", port, serial);
-                                    configured_devices.insert(serial.to_string());
-                                }
-                                Err(e) => {
-                                    eprintln!("[adb] Failed to reverse port on {}: {}", serial, e);
-                                }
-                            }
+                        if !configured_devices.contains(serial)
+                            && setup_adb_reverse(Some(serial), port).is_ok()
+                        {
+                            println!("[adb] Reversed tcp:{} on device {}", port, serial);
+                            configured_devices.insert(serial.to_string());
                         }
                     } else {
                         configured_devices.remove(serial);
@@ -161,7 +150,6 @@ pub fn start_adb_watcher(port: u16, running: Arc<AtomicBool>) -> thread::JoinHan
 
             let _ = child.kill();
             let _ = child.wait();
-
             if running.load(Ordering::Relaxed) {
                 thread::sleep(Duration::from_secs(1));
             }

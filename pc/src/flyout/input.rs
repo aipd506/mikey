@@ -130,16 +130,25 @@ impl FlyoutWindow {
                         ..Default::default()
                     });
                 }
+                FlyoutButton::ToggleAdvanced => {
+                    self.settings_expanded = !self.settings_expanded;
+                    let new_h = self.current_height();
+                    self.update_window_region(new_h);
+                }
                 FlyoutButton::SetupVirtualMic => {
                     let candidates = [
-                        Some(std::path::PathBuf::from(
-                            "pc/installer/setup-audio-device.ps1",
-                        )),
-                        Some(std::path::PathBuf::from("installer/setup-audio-device.ps1")),
-                        Some(std::path::PathBuf::from("setup-audio-device.ps1")),
+                        "pc/installer/setup-audio-device.ps1",
+                        "installer/setup-audio-device.ps1",
+                        "setup-audio-device.ps1",
                     ];
-                    if let Some(path) = candidates.into_iter().flatten().find(|p| p.exists()) {
+                    if let Some(path) = candidates
+                        .iter()
+                        .map(std::path::PathBuf::from)
+                        .find(|p| p.exists())
+                    {
                         let _ = std::process::Command::new("powershell.exe")
+                            .arg("-WindowStyle")
+                            .arg("Hidden")
                             .arg("-ExecutionPolicy")
                             .arg("Bypass")
                             .arg("-File")

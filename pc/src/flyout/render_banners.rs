@@ -1,18 +1,22 @@
 //! Notification banners: pending join request and virtual mic setup warning.
+//! Clean, anti-aliased alert cards with vector icons.
 
 #![cfg(windows)]
 
 use super::gdi::*;
+use super::heroicons::*;
 use super::palette::*;
 use super::types::*;
+use super::win32::{self, Gdiplus};
 use super::window::FlyoutWindow;
+use std::ffi::c_void;
 
 pub fn render_banners(
     dc: win32::HDC,
     flyout: &mut FlyoutWindow,
-    font_body: win32::HFONT,
-    font_body_bold: win32::HFONT,
-    font_icon: win32::HFONT,
+    g_opt: Option<&Gdiplus>,
+    graphics: *mut c_void,
+    fonts: &FlyoutFonts,
     mut y: i32,
 ) -> i32 {
     let pending_devices = flyout.session_manager.list_pending();
@@ -35,7 +39,7 @@ pub fn render_banners(
         );
         draw_text(
             dc,
-            font_body_bold,
+            fonts.body_bold,
             COLOR_STATUS_WAIT,
             20,
             y + 4,
@@ -65,7 +69,7 @@ pub fn render_banners(
         );
         draw_text(
             dc,
-            font_body_bold,
+            fonts.body_bold,
             COLOR_TEXT_PRIMARY,
             allow_rect.left,
             allow_rect.top,
@@ -90,7 +94,7 @@ pub fn render_banners(
         );
         draw_text(
             dc,
-            font_body_bold,
+            fonts.body_bold,
             COLOR_TEXT_SECONDARY,
             deny_rect.left,
             deny_rect.top,
@@ -106,22 +110,14 @@ pub fn render_banners(
     let (virt_ready, _) = crate::audio::sink::check_virtual_device_status();
     if !virt_ready {
         y += 2;
+        if let Some(g) = g_opt {
+            draw_hero_alert(g, graphics, 24.0, (y + 13) as f32, ARGB_STATUS_WAIT);
+        }
         draw_text(
             dc,
-            font_icon,
-            COLOR_STATUS_WAIT,
-            14,
-            y + 2,
-            32,
-            y + 24,
-            "\u{E7BA}",
-            DT_CENTER_V,
-        );
-        draw_text(
-            dc,
-            font_body,
+            fonts.body,
             COLOR_TEXT_PRIMARY,
-            34,
+            36,
             y + 2,
             180,
             y + 24,
@@ -154,7 +150,7 @@ pub fn render_banners(
         );
         draw_text(
             dc,
-            font_body_bold,
+            fonts.body_bold,
             COLOR_TEXT_PRIMARY,
             btn.left,
             btn.top,
