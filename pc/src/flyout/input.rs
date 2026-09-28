@@ -152,22 +152,18 @@ impl FlyoutWindow {
                         .map(std::path::PathBuf::from)
                         .find(|p| p.exists())
                     {
-                        let _ = std::process::Command::new("powershell.exe")
-                            .arg("-WindowStyle")
-                            .arg("Hidden")
-                            .arg("-ExecutionPolicy")
-                            .arg("Bypass")
-                            .arg("-File")
-                            .arg(path)
-                            .spawn();
+                        let script = path.to_string_lossy();
+                        let args = ["-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass"];
+                        let _ = crate::launch::start(
+                            "powershell.exe",
+                            &[&args[..], &["-File", &script]].concat(),
+                        );
                     }
                 }
                 FlyoutButton::OpenLogs => {
                     let log_dir = Config::default_log_dir();
                     let _ = std::fs::create_dir_all(&log_dir);
-                    let _ = std::process::Command::new("explorer.exe")
-                        .arg(log_dir)
-                        .spawn();
+                    let _ = crate::launch::start("explorer.exe", &[&log_dir.to_string_lossy()]);
                 }
                 FlyoutButton::Quit => {
                     self.running.store(false, Ordering::Relaxed);

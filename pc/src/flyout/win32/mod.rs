@@ -42,6 +42,7 @@ extern "system" {
     pub fn BringWindowToTop(hwnd: HWND) -> i32;
     pub fn SetFocus(hwnd: HWND) -> HWND;
     pub fn GetCursorPos(point: *mut POINT) -> i32;
+    pub fn LoadCursorW(instance: HMODULE, name: *const u16) -> usize;
     pub fn SetWindowRgn(hwnd: HWND, hrgn: HRGN, redraw: i32) -> i32;
     pub fn InvalidateRect(hwnd: HWND, rect: *const RECT, erase: i32) -> i32;
     pub fn BeginPaint(hwnd: HWND, paint: *mut PAINTSTRUCT) -> HDC;

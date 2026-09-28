@@ -53,7 +53,8 @@ pub fn create_flyout_hwnd() -> win32::HWND {
             cbWndExtra: 0,
             hInstance: 0,
             hIcon: 0,
-            hCursor: 0,
+            // Without a class cursor the pointer keeps whatever shape it had coming in.
+            hCursor: win32::LoadCursorW(0, win32::IDC_ARROW as *const u16),
             hbrBackground: 0,
             lpszMenuName: std::ptr::null(),
             lpszClassName: class_name.as_ptr(),

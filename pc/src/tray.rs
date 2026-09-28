@@ -147,20 +147,7 @@ pub fn start_tray_thread(
 /// Sleeps until a window message comes in (tray clicks, flyout input and timers), at most
 /// 250 ms so the icon still follows the session, then handles every waiting message.
 fn wait_and_dispatch_messages() {
-    #[repr(C)]
-    struct Point {
-        x: i32,
-        y: i32,
-    }
-    #[repr(C)]
-    struct Msg {
-        hwnd: usize,
-        message: u32,
-        wparam: usize,
-        lparam: isize,
-        time: u32,
-        pt: Point,
-    }
+    use crate::launch::{Msg, PeekMessageW};
     #[link(name = "user32")]
     extern "system" {
         fn MsgWaitForMultipleObjects(
@@ -170,13 +157,6 @@ fn wait_and_dispatch_messages() {
             dwMilliseconds: u32,
             dwWakeMask: u32,
         ) -> u32;
-        fn PeekMessageW(
-            lpMsg: *mut Msg,
-            hWnd: usize,
-            wMsgFilterMin: u32,
-            wMsgFilterMax: u32,
-            wRemoveMsg: u32,
-        ) -> i32;
         fn TranslateMessage(lpMsg: *const Msg) -> i32;
         fn DispatchMessageW(lpMsg: *const Msg) -> isize;
     }
