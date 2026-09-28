@@ -8,6 +8,7 @@ import android.util.Log
 import com.mikey.media.AudioCapture
 import com.mikey.media.AudioFrame
 import com.mikey.media.FrameJoiner
+import com.mikey.media.LevelMeter
 import com.mikey.media.Lens
 import com.mikey.media.OpusEncoder
 import com.mikey.media.VideoCapture
@@ -71,6 +72,9 @@ class SessionController(context: Context, private val listener: Listener) {
 
         /** The PC's user ended the session: stop everything, and don't reconnect. */
         fun onDisconnectedByPc()
+
+        /** How loud the mic is, 0 to 1, about 20 times a second while it's on. Called from the capture thread. */
+        fun onMicLevel(level: Float)
     }
 
     private val settings = Settings(context)
@@ -78,7 +82,12 @@ class SessionController(context: Context, private val listener: Listener) {
     private val transports = TransportManager(context, settings, Discovery(settings.deviceId, Build.MODEL), listener::onCableHint)
     private val wifiLock = WifiLatencyLock(context)
     private val frames = ArrayBlockingQueue<AudioFrame>(QUEUE_FRAMES)
-    private val capture = AudioCapture(context) { frames.offerDroppingOldest(it) }
+    private val meter = LevelMeter()
+    private val capture = AudioCapture(context) { frame ->
+        val loudness = meter.add(frame.pcm)
+        if (frame.seq % LEVEL_EVERY_FRAMES == 0) listener.onMicLevel(if (muted) 0f else loudness)
+        frames.offerDroppingOldest(frame)
+    }
     private val videoFrames = ArrayBlockingQueue<VideoFrame>(VIDEO_QUEUE_FRAMES)
     private val video: VideoCapture = VideoCapture(context, ::onVideoFrame)
     private val thread = Thread(::sessionLoop, "mikey-session")
@@ -135,7 +144,18 @@ class SessionController(context: Context, private val listener: Listener) {
     fun setMicOn(on: Boolean) {
         if (micOn == on) return
         micOn = on
-        if (on) capture.start() else capture.stop()
+        if (on) {
+            capture.start()
+        } else {
+            capture.stop()
+            listener.onMicLevel(0f)
+        }
+    }
+
+    /** The user changed a setting on the phone: the PC gets the audio ones now, the camera its new size. */
+    fun settingsChanged() {
+        controls.add(controlPayload(settings.audio))
+        updateCamera()
     }
 
     /** Turns the camera on or off. Only the phone may turn it on; the PC may only turn it off. */
@@ -255,6 +275,7 @@ class SessionController(context: Context, private val listener: Listener) {
         } finally {
             greeting = null
         }
+        settings.lastLevel = wire.level
         when (wire.level) {
             3 -> settings.lastPcAddress = wire.host
             4 -> settings.pcBtAddress = wire.host
@@ -399,7 +420,7 @@ class SessionController(context: Context, private val listener: Listener) {
      */
     private fun startSending(wire: Wire): Sender {
         level = wire.level
-        if (running) listener.onLink(Link.Live(wire.level))
+        if (running) listener.onLink(Link.Live(wire.level, pcCaps))
         transports.noteLevel(wire.level)
         if (wire.level == 3) wifiLock.hold() else wifiLock.release()
         val codec = audioCodecFor(wire.level, settings.losslessWifi, pcHasOpus = "opus" in pcCaps)
@@ -521,6 +542,9 @@ class SessionController(context: Context, private val listener: Listener) {
         /** Pictures are big and only the newest matters. */
         const val VIDEO_QUEUE_FRAMES = 2
         const val HEARTBEAT_MS = 2_000L
+
+        /** Every fifth 10 ms frame: the ring moves 20 times a second. */
+        const val LEVEL_EVERY_FRAMES = 5
         const val POLL_MS = 100L
         const val LINK_TIMEOUT_MS = 6_000
 
