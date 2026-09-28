@@ -44,8 +44,8 @@ fun parseWelcome(payload: ByteArray): Welcome {
     )
 }
 
-/** The PC's reason for turning us away, e.g. `denied`. "unknown" if it sent none. */
-fun parseReject(payload: ByteArray): String =
+/** The reason in a REJECT or BYE from the PC, e.g. `denied` or `disconnect`. "unknown" if it sent none. */
+fun parseReason(payload: ByteArray): String =
     try {
         JSONObject(String(payload)).optString("reason", "unknown")
     } catch (e: JSONException) {
