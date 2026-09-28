@@ -67,8 +67,8 @@ pub fn render_header(
             .unwrap_or(1);
         let name = match lvl {
             1 | 2 => "USB",
-            3 => "BT",
-            4 => "Wi-Fi",
+            3 => "Wi-Fi",
+            4 => "BT",
             _ => "Live",
         };
         (name, ARGB_MIC_ON)

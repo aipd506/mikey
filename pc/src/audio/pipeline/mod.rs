@@ -81,8 +81,8 @@ impl JitterBuffer {
     pub fn set_level(&self, level: u8) {
         let target_ms = match level {
             1 | 2 => USB_TARGET_MS,
-            3 => BT_TARGET_MS,
-            4 => WIFI_TARGET_MS,
+            3 => WIFI_TARGET_MS,
+            4 => BT_TARGET_MS,
             _ => USB_TARGET_MS,
         };
         let samples = target_ms * SAMPLES_PER_MS;

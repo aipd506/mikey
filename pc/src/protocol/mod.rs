@@ -9,7 +9,7 @@ pub use payloads::{
 
 use std::io::{self, Error, ErrorKind, Read, Write};
 
-pub const PROTO_VERSION: u32 = 1;
+pub const PROTO_VERSION: u32 = 2;
 pub const PORT_TCP: u16 = 7653;
 pub const PORT_BEACON: u16 = 7654;
 pub const PORT_UDP_BEACON: u16 = 7654;

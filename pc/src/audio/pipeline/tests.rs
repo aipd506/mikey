@@ -5,10 +5,10 @@ fn test_jitter_buffer_prebuffering_and_levels() {
     let jb = JitterBuffer::new();
     assert_eq!(jb.target_samples(), USB_TARGET_MS * SAMPLES_PER_MS);
 
-    jb.set_level(4);
+    jb.set_level(3);
     assert_eq!(jb.target_samples(), WIFI_TARGET_MS * SAMPLES_PER_MS);
 
-    jb.set_level(3);
+    jb.set_level(4);
     assert_eq!(jb.target_samples(), BT_TARGET_MS * SAMPLES_PER_MS);
 
     jb.set_level(1);

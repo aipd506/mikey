@@ -86,7 +86,7 @@ pub fn run_windows_rfcomm_listener(
         return Ok(());
     }
 
-    println!("[bt] RFCOMM server listening for Level 3 connections");
+    println!("[bt] RFCOMM server listening for Level 4 connections");
 
     while running.load(Ordering::Relaxed) {
         let mut client_addr = SockAddrBth {

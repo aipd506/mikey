@@ -132,7 +132,7 @@ fn main() {
         return;
     }
 
-    // 4. Start UDP Discovery Beacon (Level 2 & Level 4 discovery)
+    // 4. Start UDP Discovery Beacon (Level 2 & Level 3 discovery)
     if cfg.levels.wifi || cfg.levels.usb_tethering {
         match beacon::start_beacon_responder(
             cfg.pc_id.clone(),
@@ -144,7 +144,7 @@ fn main() {
         }
     }
 
-    // 5. Start Bluetooth RFCOMM listener (Level 3: Bluetooth)
+    // 5. Start Bluetooth RFCOMM listener (Level 4: Bluetooth)
     if cfg.levels.bluetooth {
         let _bt_handle = bt::start_bt_listener(
             session_manager.clone(),
@@ -153,7 +153,7 @@ fn main() {
         );
     }
 
-    // 6. Bind and run TCP listener on 0.0.0.0:PORT_TCP (Level 1, Level 2, Level 4)
+    // 6. Bind and run TCP listener on 0.0.0.0:PORT_TCP (Level 1, Level 2, Level 3)
     let listener = match tcp::bind_listener() {
         Ok(l) => l,
         Err(e) => {
