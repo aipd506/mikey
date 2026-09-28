@@ -1,16 +1,18 @@
 mod constants;
+mod controls;
 mod normalizer;
 mod resample;
 #[cfg(test)]
 mod tests;
 
 pub use constants::*;
+pub use controls::gate_rms;
 
 use crate::audio::dsp::AudioDsp;
 use normalizer::AudioNormalizer;
 use resample::{downmix_and_resample_reference, drift_resample_pop, JitterStats};
 use std::collections::VecDeque;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
 use std::sync::Mutex;
 use std::time::Instant;
 
@@ -22,7 +24,9 @@ pub struct JitterBuffer {
     peak_level: AtomicUsize,
     normalizer: AudioNormalizer,
     ns_strength: AtomicUsize,
+    ns_enabled: AtomicBool,
     aec_enabled: AtomicBool,
+    gate_db_bits: AtomicU32,
     dsp: Mutex<AudioDsp>,
     stats: Mutex<JitterStats>,
     resample_phase: Mutex<f32>,
@@ -39,7 +43,9 @@ impl JitterBuffer {
             peak_level: AtomicUsize::new(0),
             normalizer: AudioNormalizer::new(),
             ns_strength: AtomicUsize::new(100),
+            ns_enabled: AtomicBool::new(true),
             aec_enabled: AtomicBool::new(true),
+            gate_db_bits: AtomicU32::new(f32::NAN.to_bits()),
             dsp: Mutex::new(AudioDsp::new()),
             stats: Mutex::new(JitterStats::new()),
             resample_phase: Mutex::new(0.0),
@@ -119,9 +125,9 @@ impl JitterBuffer {
 
         let mut processed = samples.to_vec();
         if let Ok(mut dsp) = self.dsp.lock() {
-            let ns = self.get_ns_strength();
+            let ns = self.effective_ns_strength();
             let aec = self.is_aec_enabled();
-            dsp.process(&mut processed, ns, aec);
+            dsp.process(&mut processed, ns, aec, gate_rms(self.gate_db()));
         }
 
         self.normalizer.update(&processed);

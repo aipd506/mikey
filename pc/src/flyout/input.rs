@@ -1,5 +1,6 @@
 use super::types::*;
 use super::window::FlyoutWindow;
+use crate::audio::pipeline::DEFAULT_GATE_DB;
 use crate::config::Config;
 use crate::protocol::{ControlAudioPayload, ControlPayload, ControlVideoPayload};
 use std::sync::atomic::Ordering;
@@ -16,6 +17,7 @@ impl FlyoutWindow {
                     / (rect.right - rect.left) as f32;
                 self.ns_strength = ratio;
                 self.jitter_buffer.set_ns_strength((ratio * 100.0) as u32);
+                self.jitter_buffer.set_ns_enabled(ratio > 0.0);
                 unsafe { win32::InvalidateRect(self.hwnd, std::ptr::null(), 0) };
             }
             return;
@@ -48,6 +50,7 @@ impl FlyoutWindow {
                     / (rect.right - rect.left) as f32;
                 self.ns_strength = ratio;
                 self.jitter_buffer.set_ns_strength((ratio * 100.0) as u32);
+                self.jitter_buffer.set_ns_enabled(ratio > 0.0);
                 unsafe { win32::InvalidateRect(self.hwnd, std::ptr::null(), 0) };
                 return;
             }
@@ -59,6 +62,7 @@ impl FlyoutWindow {
             self.is_dragging_ns = false;
             self.session_manager.queue_control(ControlPayload {
                 audio: Some(ControlAudioPayload {
+                    ns: Some(self.ns_strength > 0.0),
                     ns_strength: Some(self.ns_strength),
                     ..Default::default()
                 }),
@@ -88,6 +92,7 @@ impl FlyoutWindow {
                 FlyoutButton::MicToggle => {}
                 FlyoutButton::MuteToggle => {
                     self.is_muted = !self.is_muted;
+                    self.session_manager.set_phone_muted(self.is_muted);
                     self.session_manager.queue_control(ControlPayload {
                         audio: Some(ControlAudioPayload {
                             muted: Some(self.is_muted),
@@ -121,7 +126,8 @@ impl FlyoutWindow {
                 }
                 FlyoutButton::ToggleGate => {
                     self.dsp_gate_enabled = !self.dsp_gate_enabled;
-                    let gate_db = if self.dsp_gate_enabled { -45.0 } else { -90.0 };
+                    let gate_db = self.dsp_gate_enabled.then_some(DEFAULT_GATE_DB);
+                    self.jitter_buffer.set_gate_db(gate_db);
                     self.session_manager.queue_control(ControlPayload {
                         audio: Some(ControlAudioPayload {
                             gate_db: Some(gate_db),

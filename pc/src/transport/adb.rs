@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use std::io::{self, BufRead, BufReader, Error, ErrorKind};
+use std::io::{self, BufReader, Error, ErrorKind, Read};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -8,6 +8,7 @@ use std::time::Duration;
 
 #[inline]
 fn new_adb_command() -> Command {
+    #[cfg_attr(not(windows), allow(unused_mut))]
     let mut cmd = Command::new("adb");
     #[cfg(windows)]
     {
@@ -31,42 +32,42 @@ pub fn check_adb() -> io::Result<String> {
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
 
-/// Lists serial numbers of all authorized connected devices ("device" status).
-pub fn list_devices() -> io::Result<Vec<String>> {
-    let output = new_adb_command()
-        .arg("devices")
-        .output()
-        .map_err(|e| Error::new(ErrorKind::NotFound, format!("adb failed: {}", e)))?;
-
-    if !output.status.success() {
-        let err = String::from_utf8_lossy(&output.stderr);
-        return Err(Error::other(format!("adb devices failed: {}", err)));
-    }
-
-    let text = String::from_utf8_lossy(&output.stdout);
-    let devices = text
+/// Reads one update from `adb track-devices`: four hex digits giving a length, then that many
+/// bytes of `serial<TAB>state` lines. Each update lists every device, so a phone missing from
+/// it is gone. An empty list is just `0000`, with no newline after it.
+fn read_device_list<R: Read>(reader: &mut R) -> io::Result<Vec<(String, String)>> {
+    let mut hex = [0u8; 4];
+    reader.read_exact(&mut hex)?;
+    let len = std::str::from_utf8(&hex)
+        .ok()
+        .and_then(|h| usize::from_str_radix(h, 16).ok())
+        .ok_or_else(|| Error::new(ErrorKind::InvalidData, "bad adb track-devices length"))?;
+    let mut list = vec![0u8; len];
+    reader.read_exact(&mut list)?;
+    Ok(String::from_utf8_lossy(&list)
         .lines()
-        .skip(1)
-        .filter_map(|l| {
-            let parts: Vec<&str> = l.split_whitespace().collect();
-            if parts.len() >= 2 && parts[1] == "device" {
-                Some(parts[0].to_string())
-            } else {
-                None
-            }
+        .filter_map(|line| {
+            let mut fields = line.split_whitespace();
+            Some((fields.next()?.to_string(), fields.next()?.to_string()))
         })
-        .collect();
-    Ok(devices)
+        .collect())
 }
 
-/// Parses a single device entry from an `adb track-devices` line.
-pub fn parse_track_device_line(line: &str) -> Option<(&str, &str)> {
-    let parts: Vec<&str> = line.split_whitespace().collect();
-    if parts.len() >= 2 {
-        Some((parts[0], parts[1]))
-    } else {
-        None
+/// A phone that has only just been allowed can refuse the first try, so give it a few.
+fn reverse_with_retries(serial: &str, port: u16) -> bool {
+    for attempt in 1..=3 {
+        match setup_adb_reverse(Some(serial), port) {
+            Ok(()) => {
+                println!("[adb] Reversed tcp:{} on device {}", port, serial);
+                return true;
+            }
+            Err(e) if attempt == 3 => {
+                eprintln!("[adb] Could not reverse tcp:{} on {}: {}", port, serial, e)
+            }
+            Err(_) => thread::sleep(Duration::from_millis(500)),
+        }
     }
+    false
 }
 
 /// Sets up `adb reverse tcp:{port} tcp:{port}` for all connected authorized devices.
@@ -93,11 +94,11 @@ pub fn setup_adb_reverse(serial: Option<&str>, port: u16) -> io::Result<()> {
     Ok(())
 }
 
-/// Runs a background loop that monitors for connected Android devices via `adb track-devices`.
+/// Watches phones come and go with `adb track-devices` and sets up `adb reverse` for each one
+/// that is ready. A reverse is lost whenever the phone reconnects or the adb server restarts,
+/// so a phone is set up again every time it reappears.
 pub fn start_adb_watcher(port: u16, running: Arc<AtomicBool>) -> thread::JoinHandle<()> {
     thread::spawn(move || {
-        let mut configured_devices: HashSet<String> = HashSet::new();
-
         while running.load(Ordering::Relaxed) {
             let mut child = match new_adb_command()
                 .arg("track-devices")
@@ -112,38 +113,28 @@ pub fn start_adb_watcher(port: u16, running: Arc<AtomicBool>) -> thread::JoinHan
                     continue;
                 }
             };
-
-            let stdout = match child.stdout.take() {
-                Some(s) => s,
-                None => {
-                    let _ = child.kill();
-                    thread::sleep(Duration::from_secs(2));
-                    continue;
-                }
+            let Some(stdout) = child.stdout.take() else {
+                let _ = child.kill();
+                thread::sleep(Duration::from_secs(2));
+                continue;
             };
 
-            let reader = BufReader::new(stdout);
-            for line_res in reader.lines() {
+            let mut reader = BufReader::new(stdout);
+            let mut reversed: HashSet<String> = HashSet::new();
+            while let Ok(devices) = read_device_list(&mut reader) {
                 if !running.load(Ordering::Relaxed) {
                     let _ = child.kill();
                     return;
                 }
-
-                let line = match line_res {
-                    Ok(l) => l,
-                    Err(_) => break,
-                };
-
-                if let Some((serial, state)) = parse_track_device_line(&line) {
-                    if state == "device" {
-                        if !configured_devices.contains(serial)
-                            && setup_adb_reverse(Some(serial), port).is_ok()
-                        {
-                            println!("[adb] Reversed tcp:{} on device {}", port, serial);
-                            configured_devices.insert(serial.to_string());
-                        }
-                    } else {
-                        configured_devices.remove(serial);
+                let ready: HashSet<String> = devices
+                    .into_iter()
+                    .filter(|(_, state)| state == "device")
+                    .map(|(serial, _)| serial)
+                    .collect();
+                reversed.retain(|serial| ready.contains(serial));
+                for serial in ready {
+                    if !reversed.contains(&serial) && reverse_with_retries(&serial, port) {
+                        reversed.insert(serial);
                     }
                 }
             }
@@ -168,16 +159,24 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_track_device_line() {
+    fn test_read_device_list() {
+        // As adb sends it: one phone; then a second, unauthorized one; then none.
+        let stream =
+            b"0015emulator-5554\tdevice\n002dZD222XK2B8\tunauthorized\nemulator-5554\tdevice\n0000";
+        let mut reader = &stream[..];
+        let pair = |s: &str, st: &str| (s.to_string(), st.to_string());
         assert_eq!(
-            parse_track_device_line("emulator-5554\tdevice"),
-            Some(("emulator-5554", "device"))
+            read_device_list(&mut reader).unwrap(),
+            vec![pair("emulator-5554", "device")]
         );
         assert_eq!(
-            parse_track_device_line("1234567890 offline"),
-            Some(("1234567890", "offline"))
+            read_device_list(&mut reader).unwrap(),
+            vec![
+                pair("ZD222XK2B8", "unauthorized"),
+                pair("emulator-5554", "device")
+            ]
         );
-        assert_eq!(parse_track_device_line(""), None);
-        assert_eq!(parse_track_device_line("invalid"), None);
+        assert!(read_device_list(&mut reader).unwrap().is_empty());
+        assert!(read_device_list(&mut reader).is_err());
     }
 }

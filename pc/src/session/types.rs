@@ -70,4 +70,5 @@ pub(crate) struct SessionInner {
     pub(crate) active_session: Option<ActiveSession>,
     pub(crate) pending_requests: HashMap<u64, PendingEntry>,
     pub(crate) pending_controls: Vec<crate::protocol::ControlPayload>,
+    pub(crate) phone_muted: bool,
 }

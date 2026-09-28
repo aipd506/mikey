@@ -89,6 +89,7 @@ A foreground service (`MikeyService`) owns the connection and all capture. The a
 - **Minimize / lock screen:** streaming continues. The notification reflects live state.
 - **Swipe away from Recents:** `android:stopWithTask="true"` + `onTaskRemoved()` → send `BYE`, close transport, release mic and camera, stop service. The PC marks the device disconnected immediately (it received `BYE`) rather than waiting for a heartbeat timeout.
 - **Stop in notification:** same as swipe-away, activity finishes if open.
+- **Disconnected by the PC** (BYE `disconnect`): release mic and camera and stop the service, like Stop. No reconnecting until the user turns something on again.
 - **Idle (connected, nothing streaming):** service stays up with the `connectedDevice` type so switching the mic on is instant. If the app is backgrounded and idle for 10 minutes, the service disconnects and stops to save battery.
 
 **Android 14+ constraint (important):** a microphone or camera foreground service can only be *started* while the app is in the foreground. Therefore:

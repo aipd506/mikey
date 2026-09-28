@@ -20,7 +20,7 @@ import com.mikey.protocol.controlPayload
 import com.mikey.protocol.heartbeatPayload
 import com.mikey.protocol.helloPayload
 import com.mikey.protocol.parseControl
-import com.mikey.protocol.parseReject
+import com.mikey.protocol.parseReason
 import com.mikey.protocol.parseWelcome
 import com.mikey.protocol.readFrame
 import com.mikey.protocol.writeFrame
@@ -68,6 +68,9 @@ class SessionController(context: Context, private val listener: Listener) {
         fun onCamera(camera: CameraState)
 
         fun onCableHint(on: Boolean)
+
+        /** The PC's user ended the session: stop everything, and don't reconnect. */
+        fun onDisconnectedByPc()
     }
 
     private val settings = Settings(context)
@@ -99,6 +102,9 @@ class SessionController(context: Context, private val listener: Listener) {
 
     /** The link being greeted right now, so stop() can cut a long wait for approval short. */
     @Volatile private var greeting: Wire? = null
+
+    /** Set when the PC ends the session with BYE `disconnect` (wire-protocol.md). */
+    @Volatile private var disconnectedByPc = false
 
     /** What the PC said it can do in WELCOME, e.g. `opus`, `vcam`. */
     @Volatile private var pcCaps: Set<String> = emptySet()
@@ -202,6 +208,12 @@ class SessionController(context: Context, private val listener: Listener) {
                 if (running) pause(REJECT_RETRY_MS)
                 continue
             } catch (e: IOException) {
+                if (disconnectedByPc) {
+                    Log.i(TAG, "The PC's user ended the session")
+                    listener.onDisconnectedByPc()
+                    waitUntilStopped()
+                    return
+                }
                 Log.i(TAG, "No link to the PC: $e")
                 listener.onLink(Link.Searching)
                 transports.noteLevel(0)
@@ -282,7 +294,7 @@ class SessionController(context: Context, private val listener: Listener) {
                     Log.i(TAG, "${if (welcome.resumed) "Resumed with" else "Connected to"} ${welcome.pcName} on level ${wire.level}")
                     return
                 }
-                FrameType.REJECT -> throw RejectedException(parseReject(frame.payload))
+                FrameType.REJECT -> throw RejectedException(parseReason(frame.payload))
                 else -> Unit // Not for us. Unknown frames are skipped, as the spec says.
             }
         }
@@ -424,13 +436,20 @@ class SessionController(context: Context, private val listener: Listener) {
         better.getAndSet(null)?.close()
     }
 
-    /** Any frame from the PC proves the link is alive. Six silent seconds or a BYE end it. CONTROL frames are applied. */
+    /**
+     * Any frame from the PC proves the link is alive. Six silent seconds or a BYE end it, and a BYE
+     * `disconnect` ends the whole session. CONTROL frames are applied.
+     */
     private fun receive(wire: Wire) {
         try {
-            do {
+            while (true) {
                 val frame = wire.input.readFrame()
                 if (frame.type == FrameType.CONTROL) onControl(frame.payload)
-            } while (frame.type != FrameType.BYE)
+                if (frame.type == FrameType.BYE) {
+                    if (parseReason(frame.payload) == "disconnect") disconnectedByPc = true
+                    break
+                }
+            }
         } catch (e: IOException) {
             // Timed out, dropped, or closed by the sender.
         } finally {

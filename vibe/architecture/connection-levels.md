@@ -18,7 +18,7 @@ The levels are numbered in the phone's order of preference, and the same numbers
 **PC side (`adb.rs`):**
 - Uses the `adb` found on `PATH` if present (avoids killing a developer's own ADB server with a version mismatch); otherwise a bundled `adb` from Android platform-tools shipped next to `mikey` (verify redistribution terms before release — scrcpy ships the same way).
 - Starts the ADB server only if the "USB debugging" level is enabled, and runs `adb track-devices` (event stream, no polling).
-- On `device` state: `adb -s <serial> reverse tcp:7653 tcp:7653`. If *Open Mikey on phone when plugged in* is on and the app isn't in the foreground: `adb -s <serial> shell am start -n com.mikey/.MainActivity`.
+- On `device` state: `adb -s <serial> reverse tcp:7653 tcp:7653`, again each time the phone reappears, because a reverse is lost when the phone reconnects or the adb server restarts. Each `track-devices` update is the whole device list, sent as a 4-hex-digit length and then `serial<TAB>state` lines, so the watcher reads it by that length, not line by line. If *Open Mikey on phone when plugged in* is on and the app isn't in the foreground: `adb -s <serial> shell am start -n com.mikey/.MainActivity`.
 - On `unauthorized` state: tray icon turns amber, notification *"Tap Allow on your phone"*, and the flyout displays an actionable hint card.
 - Windows note: most phones work with the generic WinUSB/MTP-composite driver; some OEMs need their USB driver. Link to it from the flyout's "Needs attention" card if `adb` sees no device while a phone is plugged in.
 

@@ -16,6 +16,7 @@ use std::time::Duration;
 fn main() {
     let args: Vec<String> = env::args().collect();
     let test_mode = args.iter().any(|a| a == "--test-tone");
+    #[cfg(windows)]
     let keep_console = args.iter().any(|a| a == "--console" || a == "--test-tone");
 
     // Hide and detach any console window immediately so Mikey runs silently in the tray

@@ -80,7 +80,9 @@ pub fn perform_handshake(
                 pc_name,
                 token,
                 resumed,
-                pc_caps: vec!["pcm".to_string(), "opus".to_string(), "vcam".to_string()],
+                pc_caps: ["pcm", "opus", "vcam", "aec", "rnnoise"]
+                    .map(String::from)
+                    .to_vec(),
             };
             let welcome_bytes = serde_json::to_vec(&welcome)
                 .map_err(|e| Error::other(format!("failed to serialize WELCOME: {}", e)))?;

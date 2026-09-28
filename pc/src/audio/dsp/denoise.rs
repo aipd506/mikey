@@ -1,7 +1,6 @@
 use super::echo::EchoSuppressor;
 use nnnoiseless::DenoiseState;
 
-const GATE_THRESHOLD_RMS: f32 = 180.0;
 const GATE_FLOOR_GAIN: f32 = 0.05;
 const GATE_ATTACK_ALPHA: f32 = 0.35;
 const GATE_RELEASE_ALPHA: f32 = 0.04;
@@ -29,7 +28,14 @@ impl AudioDsp {
         self.echo_suppressor.push_reference(samples);
     }
 
-    pub fn process(&mut self, samples: &mut [i16], ns_strength_pct: u32, aec_enabled: bool) {
+    /// A `gate_threshold_rms` of 0 means no noise gate.
+    pub fn process(
+        &mut self,
+        samples: &mut [i16],
+        ns_strength_pct: u32,
+        aec_enabled: bool,
+        gate_threshold_rms: f32,
+    ) {
         if samples.is_empty() {
             return;
         }
@@ -56,7 +62,7 @@ impl AudioDsp {
             let sum_sq: f32 = self.scratch_in.iter().map(|&v| v * v).sum();
             let frame_rms = (sum_sq / DenoiseState::FRAME_SIZE as f32).sqrt();
 
-            let target_gate_gain = if frame_rms < GATE_THRESHOLD_RMS {
+            let target_gate_gain = if frame_rms < gate_threshold_rms {
                 GATE_FLOOR_GAIN
             } else {
                 1.0

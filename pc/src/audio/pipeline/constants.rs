@@ -18,3 +18,6 @@ pub const MIN_AUTO_GAIN: f32 = 1.0; // never attenuate below unity
 pub const RMS_ALPHA: f32 = 0.1; // EMA smoothing (~100 ms at 10 ms chunks)
 pub const GAIN_ATTACK_ALPHA: f32 = 0.05; // gain-up rate per chunk
 pub const GAIN_RELEASE_ALPHA: f32 = 0.01; // gain-down rate per chunk
+
+/// Where the flyout's Gate toggle puts the threshold (phone-ux.md allows -60 to -20 dB).
+pub const DEFAULT_GATE_DB: f32 = -45.0;

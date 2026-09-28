@@ -5,6 +5,7 @@ use crate::protocol::{
     CODEC_OPUS, CODEC_PCM, MEDIA_HEADER_LEN,
 };
 use crate::session::{HandshakeOutcome, SessionManager, PENDING_TIMEOUT};
+use crate::transport::control::{self, Ending};
 use std::io::{Read, Write};
 use std::sync::Arc;
 
@@ -56,7 +57,7 @@ pub fn handle_bt_client<S: Read + Write>(
                 pc_name,
                 token,
                 resumed,
-                pc_caps: vec!["pcm".to_string(), "opus".to_string()],
+                pc_caps: ["pcm", "opus", "aec", "rnnoise"].map(String::from).to_vec(),
             };
             let welcome_bytes = match serde_json::to_vec(&welcome) {
                 Ok(b) => b,
@@ -86,6 +87,7 @@ pub fn handle_bt_client<S: Read + Write>(
 
     let mut opus_decoder = OpusDecoderWrapper::new().ok();
     let mut sample_buf = Vec::with_capacity(960);
+    let mut ending = Ending::Dropped;
 
     while let Ok(frame) = read_frame(&mut stream) {
         session_manager.record_frame_received();
@@ -127,21 +129,19 @@ pub fn handle_bt_client<S: Read + Write>(
                 );
             }
             FrameType::Control => {
-                if let Ok(ctrl) =
-                    serde_json::from_slice::<crate::protocol::ControlPayload>(&frame.payload)
-                {
-                    if let Some(ref audio) = ctrl.audio {
-                        if let Some(aec) = audio.aec {
-                            jitter_buffer.set_aec_enabled(aec);
-                        }
-                        if let Some(strength) = audio.ns_strength {
-                            jitter_buffer.set_ns_strength((strength * 100.0) as u32);
-                        }
-                    }
-                }
+                control::apply_phone_control(&frame.payload, &jitter_buffer, None, &session_manager)
             }
-            FrameType::Bye => break,
+            FrameType::Bye => {
+                ending = control::ending_for_bye(&frame.payload);
+                break;
+            }
             _ => {}
+        }
+
+        if !session_manager.is_active_device(&hello.device_id) {
+            let _ = write_frame(&mut stream, &control::disconnect_frame());
+            ending = Ending::Disconnected;
+            break;
         }
 
         for ctrl in session_manager.take_pending_controls() {
@@ -151,7 +151,7 @@ pub fn handle_bt_client<S: Read + Write>(
         }
     }
 
-    session_manager.notify_transport_dropped();
+    control::finish_session(&session_manager, &ending);
     println!(
         "[bt-dropped] RFCOMM connection ended for {}",
         hello.device_name

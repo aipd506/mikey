@@ -23,6 +23,7 @@ fn test_export_icons_preview() {
         fn DeleteDC(hdc: usize) -> i32;
     }
 
+    #[allow(clippy::upper_case_acronyms)] // Win32's own names
     #[repr(C)]
     struct BITMAPINFOHEADER {
         bi_size: u32,
@@ -38,6 +39,7 @@ fn test_export_icons_preview() {
         bi_clr_important: u32,
     }
 
+    #[allow(clippy::upper_case_acronyms)]
     #[repr(C)]
     struct BITMAPINFO {
         bmi_header: BITMAPINFOHEADER,
@@ -96,8 +98,8 @@ fn test_export_icons_preview() {
     draw_hero_disconnect(&g, graphics, 120.0, 180.0, 0xFFFF453A);
     draw_hero_power(&g, graphics, 200.0, 180.0, 0xFFFF453A);
 
-    // Save as BMP file to artifact directory
-    let artifact_path = "C:\\Users\\Yash Thorat\\.gemini\\antigravity-ide\\brain\\d506b661-7dcb-4d63-ab89-8d673d545c7d\\icons_preview.bmp";
+    // Saved to the temp folder, to look at by eye.
+    let artifact_path = std::env::temp_dir().join("mikey-icons-preview.bmp");
 
     // BMP Header (14 bytes) + DIB Header (40 bytes) + pixel data
     let mut bmp_data = Vec::new();
@@ -111,8 +113,8 @@ fn test_export_icons_preview() {
 
     // DIB Header
     bmp_data.extend_from_slice(&(40u32).to_le_bytes());
-    bmp_data.extend_from_slice(&(w as i32).to_le_bytes());
-    bmp_data.extend_from_slice(&(-(h as i32)).to_le_bytes()); // top-down
+    bmp_data.extend_from_slice(&w.to_le_bytes());
+    bmp_data.extend_from_slice(&(-h).to_le_bytes()); // top-down
     bmp_data.extend_from_slice(&(1u16).to_le_bytes()); // planes
     bmp_data.extend_from_slice(&(32u16).to_le_bytes()); // bpp
     bmp_data.extend_from_slice(&(0u32).to_le_bytes()); // BI_RGB

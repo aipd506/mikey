@@ -108,6 +108,10 @@ class MikeyService : Service(), SessionController.Listener {
         }
     }
 
+    override fun onDisconnectedByPc() {
+        mainThread.post { if (session != null) stopSelf() }
+    }
+
     override fun onDestroy() {
         session?.stop()
         session = null

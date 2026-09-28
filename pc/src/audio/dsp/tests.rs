@@ -1,13 +1,24 @@
 use super::*;
+use crate::audio::pipeline::gate_rms;
 
 #[test]
 fn test_noise_gate_attenuation_on_silence() {
     let mut dsp = AudioDsp::new();
     let mut silence = vec![0i16; 480 * 80];
-    dsp.process(&mut silence, 0, false);
+    dsp.process(&mut silence, 0, false, gate_rms(Some(-45.0)));
 
     assert_eq!(silence[0], 0);
     assert!(dsp.gate_gain < 0.15);
+}
+
+#[test]
+fn test_no_gate_leaves_quiet_audio_alone() {
+    let mut dsp = AudioDsp::new();
+    let mut quiet = vec![50i16; 480 * 20];
+    dsp.process(&mut quiet, 0, false, 0.0);
+
+    assert!((dsp.gate_gain - 1.0).abs() < f32::EPSILON);
+    assert_eq!(quiet[480 * 19], 50);
 }
 
 #[test]
@@ -15,7 +26,7 @@ fn test_audio_dsp_rnnoise_suppression() {
     let mut dsp = AudioDsp::new();
     let mut samples = vec![1000i16; 480 * 4];
 
-    dsp.process(&mut samples, 100, false);
+    dsp.process(&mut samples, 100, false, 0.0);
 
     assert_eq!(samples.len(), 480 * 4);
     assert!(samples.iter().any(|&s| s != 0));
