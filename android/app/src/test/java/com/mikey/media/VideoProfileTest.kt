@@ -11,19 +11,19 @@ class VideoProfileTest {
     fun autoQualityIs1080pOnUsbAnd720pElsewhere() {
         assertEquals(1920 to 1080, captureProfileFor(Lens.BACK, Aspect.WIDE, Quality.AUTO, Fps.AUTO, level = 1).size())
         assertEquals(1920 to 1080, captureProfileFor(Lens.BACK, Aspect.WIDE, Quality.AUTO, Fps.AUTO, level = 2).size())
-        assertEquals(1280 to 720, captureProfileFor(Lens.BACK, Aspect.WIDE, Quality.AUTO, Fps.AUTO, level = 4).size())
+        assertEquals(1280 to 720, captureProfileFor(Lens.BACK, Aspect.WIDE, Quality.AUTO, Fps.AUTO, level = 3).size())
         assertEquals(1280 to 720, captureProfileFor(Lens.BACK, Aspect.WIDE, Quality.P720, Fps.AUTO, level = 1).size())
-        assertEquals(1920 to 1080, captureProfileFor(Lens.BACK, Aspect.WIDE, Quality.P1080, Fps.AUTO, level = 4).size())
+        assertEquals(1920 to 1080, captureProfileFor(Lens.BACK, Aspect.WIDE, Quality.P1080, Fps.AUTO, level = 3).size())
     }
 
     @Test
     fun fourByThreeAndSquareCaptureFourByThreeSizes() {
-        val standard = captureProfileFor(Lens.FRONT, Aspect.STANDARD, Quality.P720, Fps.F15, level = 4)
+        val standard = captureProfileFor(Lens.FRONT, Aspect.STANDARD, Quality.P720, Fps.F15, level = 3)
         assertEquals(960 to 720, standard.size())
         assertFalse(standard.square)
         assertEquals(15, standard.fps)
 
-        val square = captureProfileFor(Lens.FRONT, Aspect.SQUARE, Quality.P1080, Fps.F30, level = 4)
+        val square = captureProfileFor(Lens.FRONT, Aspect.SQUARE, Quality.P1080, Fps.F30, level = 3)
         assertEquals(1440 to 1080, square.size())
         assertTrue(square.square)
         assertEquals(Lens.FRONT, square.lens)

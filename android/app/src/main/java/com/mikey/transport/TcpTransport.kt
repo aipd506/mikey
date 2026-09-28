@@ -40,10 +40,10 @@ class TcpTransport private constructor(
         fun adb() = TcpTransport("127.0.0.1", PC_PORT, level = 1, connectTimeoutMs = 300)
 
         /** A typed-in address (debug builds). */
-        fun manual(address: String, network: Network? = null) = TcpTransport(address, PC_PORT, level = 4, connectTimeoutMs = 2_000, network)
+        fun manual(address: String, network: Network? = null) = TcpTransport(address, PC_PORT, level = 3, connectTimeoutMs = 2_000, network)
 
         /** Where the PC was last time. Tried before searching, with a short timeout in case it moved. */
-        fun lastKnown(address: String, network: Network? = null) = TcpTransport(address, PC_PORT, level = 4, connectTimeoutMs = 1_000, network)
+        fun lastKnown(address: String, network: Network? = null) = TcpTransport(address, PC_PORT, level = 3, connectTimeoutMs = 1_000, network)
 
         /** A PC that answered our probe, reached over the interface that carried the answer. */
         fun discovered(pc: DiscoveredPc, network: Network? = null) = TcpTransport(

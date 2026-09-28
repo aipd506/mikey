@@ -97,8 +97,8 @@ pub(crate) fn evaluate_hello(
     } else {
         match hello.level {
             1 | 2 => false,
-            3 => false,
-            4 => !inner.config.trust_wifi_automatically,
+            3 => !inner.config.trust_wifi_automatically,
+            4 => false,
             _ => true,
         }
     };

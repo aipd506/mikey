@@ -17,8 +17,8 @@
 |---|---|---|
 | Known device (valid token), any level | Join silently | Prompt |
 | New device via **USB (L1/L2)** | Join silently, issue token (physical access = trust) | Prompt |
-| New device via **Bluetooth (L3)** | Join silently, issue token (OS pairing already required) | Prompt |
-| New device via **Wi‑Fi (L4)** | **Prompt once**, then remembered | Prompt |
+| New device via **Wi‑Fi (L3)** | **Prompt once**, then remembered | Prompt |
+| New device via **Bluetooth (L4)** | Join silently, issue token (OS pairing already required) | Prompt |
 | Another device while one is streaming | Prompt "Switch?" | Prompt "Switch?" |
 
 Why Wi‑Fi asks once even with the toggle off: on shared networks (dorms, offices, cafés) anyone with the app could otherwise pipe audio into your microphone. For a single-device user this costs exactly one click, ever. Power users can disable it: *Advanced → Trust new Wi-Fi devices automatically*.

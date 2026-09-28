@@ -11,7 +11,7 @@ import java.net.SocketTimeoutException
 
 /** A network interface we can probe: its name, our address on it, and its broadcast address. */
 class NetInterface(val name: String, val address: InetAddress, val prefixLength: Int, val broadcast: InetAddress) {
-    /** 2 for USB tethering, 4 for Wi-Fi and everything else (connection-levels.md). */
+    /** 2 for USB tethering, 3 for Wi-Fi and everything else (connection-levels.md). */
     val level: Int = levelFor(name)
 
     fun contains(other: InetAddress): Boolean = inSubnet(other.address, address.address, prefixLength)
@@ -19,7 +19,7 @@ class NetInterface(val name: String, val address: InetAddress, val prefixLength:
 
 /** A PC that answered our probe, and the interface the answer came in on. */
 class DiscoveredPc(val id: String, val name: String, val address: InetAddress, val port: Int, val proto: Int, val via: NetInterface?) {
-    val level: Int get() = via?.level ?: 4
+    val level: Int get() = via?.level ?: 3
 }
 
 /**
@@ -123,7 +123,7 @@ internal fun parseReply(data: ByteArray, length: Int): BeaconReply? {
 
 /** USB tethering interfaces are named rndis*, usb* or ncm* (connection-levels.md). Everything else counts as Wi-Fi. */
 internal fun levelFor(interfaceName: String): Int =
-    if (interfaceName.startsWith("rndis") || interfaceName.startsWith("usb") || interfaceName.startsWith("ncm")) 2 else 4
+    if (interfaceName.startsWith("rndis") || interfaceName.startsWith("usb") || interfaceName.startsWith("ncm")) 2 else 3
 
 /** Whether [ip] is inside [network]/[prefixLength]. */
 internal fun inSubnet(ip: ByteArray, network: ByteArray, prefixLength: Int): Boolean {

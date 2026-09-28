@@ -5,7 +5,7 @@ import org.json.JSONException
 import org.json.JSONObject
 import java.nio.ByteBuffer
 
-const val PROTO_VERSION = 1
+const val PROTO_VERSION = 2
 
 /**
  * [token] is the pairing token the PC gave us last time, or null when we have none. [camera] is
@@ -22,9 +22,9 @@ fun helloPayload(deviceId: String, deviceName: String, level: Int, token: String
         .toString()
         .toByteArray()
 
-/** What the phone can send right now. Never video over Bluetooth (level 3): it's too narrow. */
+/** What the phone can send right now. Never video over Bluetooth (level 4): it's too narrow. */
 internal fun phoneCaps(camera: Boolean, level: Int): List<String> =
-    if (camera && level != 3) listOf("audio", "video") else listOf("audio")
+    if (camera && level != 4) listOf("audio", "video") else listOf("audio")
 
 /**
  * [token] goes into every later HELLO. [resumed] means the PC kept our session across a drop.

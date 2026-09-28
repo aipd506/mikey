@@ -15,11 +15,11 @@ import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
 /**
- * Level 3: an RFCOMM link to a bonded computer that runs Mikey (connection-levels.md). Only
+ * Level 4: an RFCOMM link to a bonded computer that runs Mikey (connection-levels.md). Only
  * already-bonded devices are tried, so there is no scanning and no location permission.
  */
 class BluetoothTransport private constructor(private val device: BluetoothDevice) : Transport {
-    override val level = 3
+    override val level = 4
     override val host: String = device.address
 
     /** Connects, giving up after [CONNECT_TIMEOUT_MS]: a BluetoothSocket has no timeout of its own. */

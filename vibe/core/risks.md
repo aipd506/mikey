@@ -7,7 +7,7 @@
 | R3 | Android FGS/permission rules change again | High | Medium | All FGS logic in `MikeyService` + `Notifier`; test on newest Android beta each phase |
 | R4 | Virtual camera not visible in some apps (Windows Camera app, some UWP) | Medium | Medium | softcam covers major meeting apps; MF virtual camera on Win11 in Phase 5 |
 | R5 | ADB version conflict with a developer's own Android SDK | Medium | Low | Prefer `adb` on PATH; bundled only as fallback |
-| R6 | Bluetooth RFCOMM unreliable on some PC adapters | Medium | Low | It's level 3 of 4; clear fallback; audio only |
+| R6 | Bluetooth RFCOMM unreliable on some PC adapters | Medium | Low | It's level 4 of 4; clear fallback; audio only |
 | R7 | USB tethering routes PC internet via mobile data | Medium | Medium | One-time tip; Level 1 preferred when available |
 | R8 | GNOME hides tray icons | Medium | Medium | Document AppIndicator extension; notifications still work; `mikey --settings` CLI fallback |
 | R9 | Secure Boot blocks unsigned v4l2loopback | Medium | Medium | Recommend distro DKMS package (auto-signed on Ubuntu/Fedora with MOK); troubleshooting doc |

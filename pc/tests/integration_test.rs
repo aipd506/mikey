@@ -106,7 +106,7 @@ fn test_end_to_end_handover_with_session_hold() {
     let sm = SessionManager::new(temp_cfg);
     let sm_clone = sm.clone();
 
-    // Spawn server accept loop for two connections (Level 1 then Level 4)
+    // Spawn server accept loop for two connections (Level 1 then Level 3)
     let server_thread = thread::spawn(move || {
         for _ in 0..2 {
             let (stream, _) = listener.accept().expect("accept connection");
@@ -150,7 +150,7 @@ fn test_end_to_end_handover_with_session_hold() {
     assert!(session.is_held());
     assert_eq!(session.current_level, 1);
 
-    // 2. Reconnect via Level 4 (Wi-Fi) within 30 seconds
+    // 2. Reconnect via Level 3 (Wi-Fi) within 30 seconds
     let mut client2 = TcpStream::connect(addr).expect("connect client 2");
     configure_stream(&client2).expect("configure stream");
 
@@ -158,7 +158,7 @@ fn test_end_to_end_handover_with_session_hold() {
         proto: PROTO_VERSION,
         device_id: "handover-phone-id".to_string(),
         device_name: "Pixel 7".to_string(),
-        level: 4,
+        level: 3,
         token: Some(token),
         resume: Some(true),
         caps: vec!["pcm".to_string()],
@@ -175,7 +175,7 @@ fn test_end_to_end_handover_with_session_hold() {
     assert!(welcome2.resumed);
 
     let updated_session = sm.active_session().expect("resumed session");
-    assert_eq!(updated_session.current_level, 4);
+    assert_eq!(updated_session.current_level, 3);
     assert!(!updated_session.is_held());
 
     // Clean shutdown

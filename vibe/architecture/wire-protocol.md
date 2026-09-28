@@ -30,8 +30,9 @@ Receivers **reject any length > 4 MiB** and close the connection (protects again
 ### JSON field formats
 
 - All JSON payloads are UTF-8.
-- `proto`: integer, the major protocol version. Currently `1`.
+- `proto`: integer, the major protocol version. Currently `2`. Version 2 renumbered the levels to follow the order of preference, so Wi‑Fi became 3 and Bluetooth 4.
 - `device_id`, `pc_id`: the random 128-bit id as 32 lowercase hex characters.
+- `level` (phone): the link the phone is on: 1 USB debugging, 2 USB tethering, 3 Wi‑Fi, 4 Bluetooth ([connection-levels.md](connection-levels.md)).
 - `caps` (phone): list of what the phone can send right now. `["audio"]` in Phase 1, `["audio", "video"]` from Phase 3 (just `["audio"]` over Bluetooth or on a phone without a camera).
 - Receivers ignore JSON fields and frame types they don't know, so either side can add new ones without breaking the other.
 - `resume` is not used yet. The PC resumes a held session by `device_id` within 30 s of a drop and answers `resumed: true`.
@@ -114,4 +115,4 @@ Reject rule (phone): after `denied`, `version` or an unknown reason the phone st
 
 ## Future: UDP media on Wi‑Fi (Phase 5, optional)
 
-If testing shows TCP head-of-line blocking causes audible stalls on busy Wi‑Fi, audio moves to UDP on Level 4 (same media header, Opus in-band FEC + loss concealment), while HELLO/CONTROL/HEARTBEAT stay on TCP. Not built unless measured to be necessary.
+If testing shows TCP head-of-line blocking causes audible stalls on busy Wi‑Fi, audio moves to UDP on Level 3 (same media header, Opus in-band FEC + loss concealment), while HELLO/CONTROL/HEARTBEAT stay on TCP. Not built unless measured to be necessary.

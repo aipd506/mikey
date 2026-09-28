@@ -78,12 +78,12 @@ class DiscoveryTest {
     }
 
     @Test
-    fun tetherInterfacesAreLevel2AndTheRestLevel4() {
+    fun tetherInterfacesAreLevel2AndTheRestLevel3() {
         assertEquals(2, levelFor("rndis0"))
         assertEquals(2, levelFor("usb0"))
         assertEquals(2, levelFor("ncm0"))
-        assertEquals(4, levelFor("wlan0"))
-        assertEquals(4, levelFor("eth0"))
+        assertEquals(3, levelFor("wlan0"))
+        assertEquals(3, levelFor("eth0"))
     }
 
     @Test

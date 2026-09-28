@@ -10,8 +10,8 @@
   | Level | Format | Frame | Why |
   |---|---|---|---|
   | 1–2 USB | Raw PCM s16le | 10 ms | ~0.77 Mbps is trivial for USB; zero codec delay; perfect quality |
-  | 4 Wi‑Fi | Opus 96 kbps (raw PCM if *Lossless audio on Wi‑Fi* is on) | 10 ms | Transparent to the ear, adds ~5–10 ms, more robust on busy Wi‑Fi |
-  | 3 Bluetooth | Opus 32–48 kbps | 20 ms | Only option that fits the link |
+  | 3 Wi‑Fi | Opus 96 kbps (raw PCM if *Lossless audio on Wi‑Fi* is on) | 10 ms | Transparent to the ear, adds ~5 to 10 ms, more robust on busy Wi‑Fi |
+  | 4 Bluetooth | Opus 32 to 48 kbps | 20 ms | Only option that fits the link |
 
   Opus runs in `RESTRICTED_LOWDELAY` mode on Wi‑Fi (music-grade quality, lowest delay) and VOIP mode at 48 kbps on Bluetooth. No FEC on Bluetooth: RFCOMM retransmits, so loss never reaches Opus and FEC would only cost bits. Encoding costs far less phone CPU than any noise suppression would.
 - Capture runs on a dedicated high-priority thread; it never blocks on the network. A small bounded queue sits between capture and send; if the network stalls, the **oldest** audio is dropped (freshness beats completeness in a live call).

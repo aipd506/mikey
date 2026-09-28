@@ -82,7 +82,7 @@ pub fn handle_bt_client<S: Read + Write>(
     }
 
     println!("[bt-connected] {} via Bluetooth RFCOMM", hello.device_name);
-    jitter_buffer.set_level(3); // Level 3: Bluetooth
+    jitter_buffer.set_level(4); // Level 4: Bluetooth
 
     let mut opus_decoder = OpusDecoderWrapper::new().ok();
     let mut sample_buf = Vec::with_capacity(960);

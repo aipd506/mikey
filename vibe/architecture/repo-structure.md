@@ -31,7 +31,7 @@ mikey/
 │   │   ├── session.rs         # SessionManager: handshake, trust, handover, one-active rule
 │   │   ├── protocol.rs        # Framing, frame types, media header
 │   │   ├── transport/
-│   │   │   ├── tcp.rs         # TCP listener (L1 via localhost, L2, L4)
+│   │   │   ├── tcp.rs         # TCP listener (L1 via localhost, L2, L3)
 │   │   │   ├── beacon.rs      # UDP discovery responder
 │   │   │   ├── adb.rs         # track-devices, reverse, app launch
 │   │   │   └── bt.rs          # RFCOMM server (Winsock / BlueZ)

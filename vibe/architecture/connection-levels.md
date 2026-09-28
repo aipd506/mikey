@@ -2,7 +2,7 @@
 
 Priority order (1 = best). Mikey always uses the best level currently available and upgrades automatically when a better one appears.
 
-The phone's order of preference is 1, 2, 4, then 3: Bluetooth is the last resort, used only when no USB or Wi‑Fi link works, because it carries narrower audio and no video. The level numbers on the wire stay as in the table.
+The levels are numbered in the phone's order of preference, and the same numbers go on the wire (`level` in HELLO). Bluetooth is the last resort, used only when no USB or Wi‑Fi link works, because it carries narrower audio and no video.
 
 | | Level | Needs from the user | Bandwidth (practical) | Added latency | Audio | Video |
 |---|---|---|---|---|---|---|

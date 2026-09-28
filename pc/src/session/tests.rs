@@ -46,7 +46,7 @@ fn test_wifi_new_device_requires_approval() {
         proto: PROTO_VERSION,
         device_id: "phone-456".into(),
         device_name: "Galaxy".into(),
-        level: 4, // Wi-Fi
+        level: 3, // Wi-Fi
         token: None,
         resume: None,
         caps: vec![],
@@ -147,7 +147,7 @@ fn test_session_hold_and_handover() {
         proto: PROTO_VERSION,
         device_id: "phone-1".into(),
         device_name: "Dev1".into(),
-        level: 4, // handover to Wi-Fi
+        level: 3, // handover to Wi-Fi
         token: Some(token),
         resume: Some(true),
         caps: vec![],
@@ -162,5 +162,5 @@ fn test_session_hold_and_handover() {
     }
 
     assert!(sm.is_active());
-    assert_eq!(sm.current_level(), Some(4));
+    assert_eq!(sm.current_level(), Some(3));
 }

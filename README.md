@@ -77,7 +77,7 @@ Mic and camera always start **off**. A new device cannot silently inject audio i
 │    │    └─ WifiTransport      TCP + UDP discovery beacon                │
 │    ├─ AudioCapture        AAudio / AudioRecord, 48 kHz mono             │
 │    └─ VideoCapture        CameraX → JPEG → frames                      │
-└──────────── L1 USB │ L2 Tether │ L3 Bluetooth │ L4 Wi-Fi ─────────────┘
+└──────────── L1 USB │ L2 Tether │ L3 Wi-Fi │ L4 Bluetooth ─────────────┘
                      ▼                           ▼
 ┌─────────────────── PC: Mikey for PC (mikey) ──────────────────────────┐
 │  Listeners: TCP :7653 · UDP beacon :7654 · RFCOMM · AdbWatcher        │

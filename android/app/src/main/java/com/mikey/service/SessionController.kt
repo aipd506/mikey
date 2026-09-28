@@ -168,7 +168,7 @@ class SessionController(context: Context, private val listener: Listener) {
     private fun updateCamera() {
         val blocked = when {
             !cameraOn -> null
-            level == 3 -> CameraBlock.BLUETOOTH
+            level == 4 -> CameraBlock.BLUETOOTH
             level != 0 && "vcam" !in pcCaps -> CameraBlock.PC
             else -> null
         }
@@ -244,8 +244,8 @@ class SessionController(context: Context, private val listener: Listener) {
             greeting = null
         }
         when (wire.level) {
-            3 -> settings.pcBtAddress = wire.host
-            4 -> settings.lastPcAddress = wire.host
+            3 -> settings.lastPcAddress = wire.host
+            4 -> settings.pcBtAddress = wire.host
         }
         return wire
     }
@@ -389,7 +389,7 @@ class SessionController(context: Context, private val listener: Listener) {
         level = wire.level
         if (running) listener.onLink(Link.Live(wire.level))
         transports.noteLevel(wire.level)
-        if (wire.level == 4) wifiLock.hold() else wifiLock.release()
+        if (wire.level == 3) wifiLock.hold() else wifiLock.release()
         val codec = audioCodecFor(wire.level, settings.losslessWifi, pcHasOpus = "opus" in pcCaps)
         val profile = opusProfileFor(wire.level)
         val encoder = if (codec == AudioCodec.OPUS) OpusEncoder(profile.application, profile.bitrate) else null
@@ -516,7 +516,7 @@ internal enum class AudioCodec { PCM, OPUS }
 /** Raw PCM on USB, where bandwidth is free, and when the user asked for lossless Wi-Fi. Opus elsewhere, if the PC can decode it. */
 internal fun audioCodecFor(level: Int, losslessWifi: Boolean, pcHasOpus: Boolean): AudioCodec = when {
     !pcHasOpus || level <= 2 -> AudioCodec.PCM
-    level == 4 && losslessWifi -> AudioCodec.PCM
+    level == 3 && losslessWifi -> AudioCodec.PCM
     else -> AudioCodec.OPUS
 }
 
@@ -529,7 +529,7 @@ internal class OpusProfile(val application: OpusEncoder.Application, val bitrate
  * never reaches Opus and FEC would only cost bits.
  */
 internal fun opusProfileFor(level: Int): OpusProfile =
-    if (level == 3) OpusProfile(OpusEncoder.Application.VOIP, 48_000, 2) else OpusProfile(OpusEncoder.Application.LOW_DELAY, 96_000, 1)
+    if (level == 4) OpusProfile(OpusEncoder.Application.VOIP, 48_000, 2) else OpusProfile(OpusEncoder.Application.LOW_DELAY, 96_000, 1)
 
 /** The PC answered HELLO with REJECT. */
 private class RejectedException(val reason: String) : Exception("PC said $reason")

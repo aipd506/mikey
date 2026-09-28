@@ -46,7 +46,7 @@ The Mikey Flyout is an ultra-compact, minimal companion dialog (~300 px wide, dy
 
 #### A. Header & Connection Status
 - **Device Identity:** Name of the currently connected phone (e.g., `Pixel 7 Pro` or `Waiting for phone...`).
-- **Connection Badge:** Pill badge displaying active transport level (`L1 USB`, `L2 Tether`, `L3 BT`, `L4 Wi-Fi`, or `IDLE`) with its matching transport icon (`\u{E88E}` USB, `\u{E702}` BT, `\u{E701}` Wi-Fi).
+- **Connection Badge:** Pill badge displaying active transport level (`L1 USB`, `L2 Tether`, `L3 Wi-Fi`, `L4 BT`, or `IDLE`) with its matching transport icon (`\u{E88E}` USB, `\u{E702}` BT, `\u{E701}` Wi-Fi).
 - **Status Dot:** `#30D158` (green = live stream), `#FFD60A` (amber = waiting / handshake), `#3A3A3C` (dimmed grey = idle).
 
 #### B. Microphone & Audio Controls

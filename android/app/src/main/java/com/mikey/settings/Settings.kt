@@ -50,7 +50,7 @@ class Settings(context: Context) {
         pcBtAddress = null
     }
 
-    /** Connection levels the user allows: 1 USB debugging, 2 USB tethering, 3 Bluetooth, 4 Wi-Fi. All by default. */
+    /** Connection levels the user allows: 1 USB debugging, 2 USB tethering, 3 Wi-Fi, 4 Bluetooth. All by default. */
     val enabledLevels: Set<Int>
         get() = prefs.getStringSet(KEY_LEVELS, null)?.mapNotNull { it.toIntOrNull() }?.toSet() ?: setOf(1, 2, 3, 4)
 
