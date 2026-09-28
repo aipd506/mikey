@@ -1,8 +1,42 @@
+use super::find_output_device;
 use crate::audio::pipeline::JitterBuffer;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, SampleFormat, Stream, StreamConfig};
 use std::io::{self, Error};
 use std::sync::Arc;
+
+/// Opens the phone's audio output (the virtual mic, else the default speakers) and the speaker
+/// capture that echo cancellation compares against. The streams stop when dropped.
+pub fn start_output(jitter_buffer: &Arc<JitterBuffer>) -> Vec<Stream> {
+    let mut streams = Vec::new();
+    match find_output_device() {
+        Ok((device, name, is_vb_cable)) => {
+            if is_vb_cable {
+                println!("[audio] Using virtual mic device: {}", name);
+            } else {
+                println!(
+                    "[audio] No virtual mic found. Using fallback output: {}",
+                    name
+                );
+            }
+            match start_audio_stream(&device, Arc::clone(jitter_buffer)) {
+                Ok(stream) => streams.push(stream),
+                Err(e) => eprintln!("[audio] Failed to start audio playback stream: {}", e),
+            }
+        }
+        Err(e) => eprintln!("[audio] Error finding output device: {}", e),
+    }
+    match start_loopback_stream(Arc::clone(jitter_buffer)) {
+        Ok(stream) => {
+            println!(
+                "[audio] AEC loopback reference stream active (speaker sound cancellation enabled)"
+            );
+            streams.push(stream);
+        }
+        Err(e) => eprintln!("[audio] Note: Loopback stream not available: {}", e),
+    }
+    streams
+}
 
 pub fn start_audio_stream(device: &Device, jitter_buffer: Arc<JitterBuffer>) -> io::Result<Stream> {
     let supported_config = device
@@ -60,6 +94,10 @@ pub fn start_audio_stream(device: &Device, jitter_buffer: Arc<JitterBuffer>) -> 
     stream
         .play()
         .map_err(|e| Error::other(format!("failed to start playback stream: {}", e)))?;
+    println!(
+        "[audio] Output stream initialized ({} Hz)",
+        config.sample_rate.0
+    );
 
     Ok(stream)
 }

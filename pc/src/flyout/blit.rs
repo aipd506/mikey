@@ -12,7 +12,6 @@ use std::ffi::c_void;
 
 pub fn blit_camera_preview(dc: win32::HDC, frame: &DecodedFrame, top: i32) {
     let prev_w = FLYOUT_WIDTH - 28;
-    let bgr = frame.to_bgr();
     let bmi = win32::BITMAPINFO {
         bmiHeader: win32::BITMAPINFOHEADER {
             biSize: std::mem::size_of::<win32::BITMAPINFOHEADER>() as u32,
@@ -30,6 +29,8 @@ pub fn blit_camera_preview(dc: win32::HDC, frame: &DecodedFrame, top: i32) {
         bmiColors: [0],
     };
     unsafe {
+        // Drops rows and columns: the cheapest way down from 1080p to a 100 px thumbnail.
+        win32::SetStretchBltMode(dc, win32::COLORONCOLOR);
         win32::StretchDIBits(
             dc,
             14,
@@ -40,7 +41,7 @@ pub fn blit_camera_preview(dc: win32::HDC, frame: &DecodedFrame, top: i32) {
             0,
             frame.width as i32,
             frame.height as i32,
-            bgr.as_ptr() as *const c_void,
+            frame.bgr.as_ptr() as *const c_void,
             &bmi,
             win32::DIB_RGB_COLORS,
             win32::SRCCOPY,

@@ -4,16 +4,24 @@ pub mod api;
 #[cfg(windows)]
 pub mod install;
 
+use super::decoder::DecodedFrame;
 use api::SoftcamApi;
 use std::ffi::c_void;
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
+
+const FPS: f32 = 30.0;
+
+#[derive(Clone, Copy)]
+struct Camera {
+    ptr: usize,
+    width: usize,
+    height: usize,
+}
 
 /// Thread-safe Virtual Camera manager.
 pub struct VirtualCamera {
-    api: Option<SoftcamApi>,
-    camera_ptr: Mutex<Option<usize>>,
-    current_width: Mutex<usize>,
-    current_height: Mutex<usize>,
+    api: OnceLock<Option<SoftcamApi>>,
+    camera: Mutex<Option<Camera>>,
 }
 
 impl Default for VirtualCamera {
@@ -24,67 +32,93 @@ impl Default for VirtualCamera {
 
 impl VirtualCamera {
     pub fn new() -> Self {
-        let api = SoftcamApi::load();
-        if api.is_some() {
-            println!("[video] Virtual camera backend loaded (softcam.dll found)");
-        } else {
-            println!(
-                "[video] Virtual camera not installed. Camera preview available; install softcam.dll to use with Zoom/Teams."
-            );
-        }
-
         Self {
-            api,
-            camera_ptr: Mutex::new(None),
-            current_width: Mutex::new(0),
-            current_height: Mutex::new(0),
+            api: OnceLock::new(),
+            camera: Mutex::new(None),
+        }
+    }
+
+    /// Loads softcam, extracting and registering it on first run, then puts the off frame up so
+    /// apps find a working camera before the phone connects. The first run writes files and the
+    /// registry, so this runs on a background thread, never on the startup path.
+    pub fn load(&self) {
+        let api = self.api.get_or_init(|| {
+            let api = SoftcamApi::load();
+            if api.is_some() {
+                println!("[video] Virtual camera backend loaded (softcam.dll found)");
+            } else {
+                println!(
+                    "[video] Virtual camera not installed. Camera preview available; install softcam.dll to use with Zoom/Teams."
+                );
+            }
+            api
+        });
+        if api.is_some() {
+            self.show_off_frame();
         }
     }
 
     pub fn is_available(&self) -> bool {
-        self.api.is_some()
+        matches!(self.api.get(), Some(Some(_)))
     }
 
-    /// Pushes a BGR frame (3 bytes per pixel) to the virtual camera.
-    /// If dimensions change, re-initializes or maintains resolution.
-    pub fn push_bgr_frame(&self, bgr: &[u8], width: usize, height: usize, fps: f32) {
-        let api = match &self.api {
-            Some(a) => a,
-            None => return,
+    /// The neutral frame for when the camera is off (media-pipeline.md), at the size apps already have.
+    pub fn show_off_frame(&self) {
+        let (w, h) = self
+            .camera
+            .lock()
+            .unwrap()
+            .map_or((1280, 720), |c| (c.width, c.height));
+        self.push_frame(&DecodedFrame::placeholder(w, h));
+    }
+
+    /// Sends a frame to the virtual camera. softcam paces sends to FPS, so this can block for up
+    /// to a frame.
+    pub fn push_frame(&self, frame: &DecodedFrame) {
+        let Some(Some(api)) = self.api.get() else {
+            return;
         };
+        let mut guard = self.camera.lock().unwrap();
+        let same_size = |c: &Camera| (c.width, c.height) == (frame.width, frame.height);
 
-        let mut handle_guard = self.camera_ptr.lock().unwrap();
-        let mut w_guard = self.current_width.lock().unwrap();
-        let mut h_guard = self.current_height.lock().unwrap();
-
-        // Recreate camera handle if dimensions change or uninitialized
-        if handle_guard.is_none() || *w_guard != width || *h_guard != height {
-            if let Some(old_ptr) = handle_guard.take() {
-                unsafe { (api.delete_camera)(old_ptr as *mut c_void) };
+        // An app that has the camera open keeps the size it first saw (media-pipeline.md), so a
+        // new size only recreates the camera while nothing is using it.
+        let recreate = match &*guard {
+            Some(c) => !same_size(c) && !unsafe { (api.is_connected)(c.ptr as *mut c_void) },
+            None => true,
+        };
+        if recreate {
+            if let Some(old) = guard.take() {
+                unsafe { (api.delete_camera)(old.ptr as *mut c_void) };
             }
-            let new_handle = unsafe { (api.create_camera)(width as i32, height as i32, fps) };
-            if !new_handle.is_null() {
-                *handle_guard = Some(new_handle as usize);
-                *w_guard = width;
-                *h_guard = height;
+            let ptr = unsafe { (api.create_camera)(frame.width as i32, frame.height as i32, FPS) };
+            if !ptr.is_null() {
+                *guard = Some(Camera {
+                    ptr: ptr as usize,
+                    width: frame.width,
+                    height: frame.height,
+                });
             }
         }
 
-        if let Some(ptr) = *handle_guard {
-            unsafe {
-                (api.send_frame)(ptr as *mut c_void, bgr.as_ptr());
-            }
+        let Some(cam) = *guard else {
+            return;
+        };
+        let ptr = cam.ptr as *mut c_void;
+        if same_size(&cam) {
+            unsafe { (api.send_frame)(ptr, frame.bgr.as_ptr()) };
+        } else {
+            let boxed = frame.letterbox(cam.width, cam.height);
+            unsafe { (api.send_frame)(ptr, boxed.bgr.as_ptr()) };
         }
     }
 }
 
 impl Drop for VirtualCamera {
     fn drop(&mut self) {
-        if let Some(api) = &self.api {
-            if let Ok(mut guard) = self.camera_ptr.lock() {
-                if let Some(ptr) = guard.take() {
-                    unsafe { (api.delete_camera)(ptr as *mut c_void) };
-                }
+        if let (Some(Some(api)), Ok(mut guard)) = (self.api.get(), self.camera.lock()) {
+            if let Some(cam) = guard.take() {
+                unsafe { (api.delete_camera)(cam.ptr as *mut c_void) };
             }
         }
     }

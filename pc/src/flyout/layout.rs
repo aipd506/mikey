@@ -22,8 +22,7 @@ pub fn compute_flyout_height(
     if !session_mgr.list_pending().is_empty() {
         h += 32;
     }
-    let (virt_ready, _) = crate::audio::sink::check_virtual_device_status();
-    if !virt_ready {
+    if !crate::audio::sink::virtual_device_ready() {
         h += 30;
     }
     h
@@ -44,7 +43,7 @@ pub fn update_window_clip_region(hwnd: win32::HWND, height: i32) {
 }
 
 pub fn create_flyout_hwnd() -> win32::HWND {
-    let class_name = to_wide("MikeyFlyoutCompanionClass");
+    let class_name = to_wide(FLYOUT_CLASS);
     unsafe {
         let wc = win32::WNDCLASSEXW {
             cbSize: std::mem::size_of::<win32::WNDCLASSEXW>() as u32,

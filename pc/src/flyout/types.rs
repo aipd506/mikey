@@ -18,6 +18,9 @@ pub const FLYOUT_WIDTH: i32 = 300;
 pub const FLYOUT_HEIGHT_COLLAPSED: i32 = 254;
 pub const FLYOUT_HEIGHT_EXPANDED: i32 = 360;
 pub const FLYOUT_CORNER_RADIUS: i32 = 16;
+pub const FLYOUT_CLASS: &str = "MikeyFlyoutCompanionClass";
+/// Posted to the flyout by a second launch of Mikey (WM_APP + 1): open by the tray.
+pub const WM_APP_SHOW: u32 = 0x8001;
 
 #[derive(Clone, Copy)]
 pub struct FlyoutFonts {

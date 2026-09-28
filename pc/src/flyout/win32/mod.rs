@@ -77,6 +77,7 @@ extern "system" {
         y_src: i32,
         rop: u32,
     ) -> i32;
+    pub fn SetStretchBltMode(hdc: HDC, mode: i32) -> i32;
     pub fn StretchDIBits(
         hdc: HDC,
         x_dest: i32,

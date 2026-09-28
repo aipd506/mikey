@@ -18,6 +18,8 @@ pub struct FlyoutWindow {
     pub(crate) jitter_buffer: Arc<JitterBuffer>,
     pub(crate) running: Arc<AtomicBool>,
     pub(crate) visible: bool,
+    pub(crate) height: i32,
+    pub(crate) show_requested: bool,
     pub(crate) is_muted: bool,
     pub(crate) ns_strength: f32,
     pub(crate) aec_enabled: bool,
@@ -49,6 +51,8 @@ impl FlyoutWindow {
             jitter_buffer,
             running,
             visible: false,
+            height: FLYOUT_HEIGHT_COLLAPSED,
+            show_requested: false,
             is_muted: false,
             ns_strength: 1.0,
             aec_enabled: true,
@@ -83,7 +87,8 @@ impl FlyoutWindow {
         )
     }
 
-    pub fn update_window_region(&self, height: i32) {
+    pub fn update_window_region(&mut self, height: i32) {
+        self.height = height;
         update_window_clip_region(self.hwnd, height);
         unsafe {
             win32::SetWindowPos(
@@ -108,6 +113,11 @@ impl FlyoutWindow {
         self.aec_enabled = self.jitter_buffer.is_aec_enabled();
         self.dsp_gate_enabled = self.jitter_buffer.gate_db().is_some();
         self.is_muted = self.session_manager.is_phone_muted();
+    }
+
+    /// True once after another launch of Mikey asked this one to open.
+    pub fn take_show_request(&mut self) -> bool {
+        std::mem::take(&mut self.show_requested)
     }
 
     pub fn hide(&mut self) {
@@ -139,8 +149,14 @@ impl FlyoutWindow {
             }
         }
 
+        // Listing audio devices can take a second, so it never runs here; only a missing mic
+        // is checked again, in the background, in case setup was just run.
+        if !crate::audio::sink::virtual_device_ready() {
+            crate::audio::sink::refresh_virtual_device_status();
+        }
         let height = self.current_height();
         let (x, y) = calculate_flyout_position(tray_x, tray_y, tray_w, tray_h, height);
+        self.height = height;
         update_window_clip_region(self.hwnd, height);
 
         unsafe {

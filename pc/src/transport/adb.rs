@@ -99,6 +99,13 @@ pub fn setup_adb_reverse(serial: Option<&str>, port: u16) -> io::Result<()> {
 /// so a phone is set up again every time it reappears.
 pub fn start_adb_watcher(port: u16, running: Arc<AtomicBool>) -> thread::JoinHandle<()> {
     thread::spawn(move || {
+        match check_adb() {
+            Ok(ver) => println!("[adb] Found {}", ver.lines().next().unwrap_or(&ver)),
+            Err(e) => eprintln!(
+                "[adb] Not available: {}. Ensure Android platform-tools are in PATH.",
+                e
+            ),
+        }
         while running.load(Ordering::Relaxed) {
             let mut child = match new_adb_command()
                 .arg("track-devices")
