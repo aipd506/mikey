@@ -68,5 +68,5 @@ sudo ufw allow 7654/udp comment "Mikey UDP Beacon"
 
 1. **Level 1 (USB Debugging):** Plug in phone with USB debugging enabled. Mikey's background ADB watcher automatically runs `adb reverse tcp:7653 tcp:7653`.
 2. **Level 2 (USB Tethering):** Plug in USB and enable USB tethering in Android settings.
-3. **Level 3 (Bluetooth):** Pair phone and PC via Bluetooth. Audio streams over RFCOMM.
-4. **Level 4 (Wi-Fi):** Connect phone to the same local network or phone's mobile hotspot. The phone discovers the PC automatically via UDP beacon.
+3. **Level 3 (Wi-Fi):** Connect phone to the same local network or phone's mobile hotspot. The phone discovers the PC automatically via UDP beacon.
+4. **Level 4 (Bluetooth):** Pair phone and PC via Bluetooth. Audio streams over RFCOMM.

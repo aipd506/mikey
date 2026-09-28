@@ -6,10 +6,10 @@
 |---|---|---|
 | Phone mic → PC virtual mic | ✅ Feasible | Proven pattern (WO Mic, AudioRelay). Needs a virtual audio device on Windows (VB-Cable, user-installed). |
 | Phone camera → PC virtual webcam | ✅ Feasible, some effort | Windows: DirectShow virtual cam via `softcam` (Win10/11); Media Foundation virtual camera (Win11 only) as a later upgrade. Linux: `v4l2loopback`. |
-| **Level 1 — USB debugging (ADB)** | ✅ Feasible, best quality | `adb reverse` tunnels the phone's `localhost:7653` to the PC. Truly plug-and-play *after* the user has enabled USB debugging once and tapped "Allow" once. Minority of users have debugging on. |
-| **Level 2 — USB tethering** | ✅ Feasible | Standard network interface over USB. Subnet is **not** always `192.168.42.x` — must be discovered, not hardcoded. User must toggle tethering (Android does not let apps turn it on). |
-| **Level 3 — Bluetooth** | ⚠️ Feasible for **audio only** | Classic Bluetooth RFCOMM gives ~0.5–1.5 Mbps in practice. Enough for Opus voice (32–64 kbps); **not enough for usable video**. Camera is disabled on this level with a clear message. |
-| **Level 4 — Wi‑Fi / LAN** | ✅ Feasible | UDP broadcast discovery + TCP session. Blocked by client-isolated networks (some offices, hotels, guest Wi‑Fi) → manual IP fallback in Advanced. |
+| **Level 1: USB debugging (ADB)** | ✅ Feasible, best quality | `adb reverse` tunnels the phone's `localhost:7653` to the PC. Truly plug-and-play *after* the user has enabled USB debugging once and tapped "Allow" once. Minority of users have debugging on. |
+| **Level 2: USB tethering** | ✅ Feasible | Standard network interface over USB. Subnet is **not** always `192.168.42.x`, so it must be discovered, not hardcoded. User must toggle tethering (Android does not let apps turn it on). |
+| **Level 3: Wi‑Fi / LAN** | ✅ Feasible | UDP broadcast discovery + TCP session. Blocked by client-isolated networks (some offices, hotels, guest Wi‑Fi) → manual IP fallback in Advanced. |
+| **Level 4: Bluetooth** | ⚠️ Feasible for **audio only** | Classic Bluetooth RFCOMM gives ~0.5 to 1.5 Mbps in practice. Enough for Opus voice (32 to 64 kbps); **not enough for usable video**. Camera is disabled on this level with a clear message. |
 | Automatic upgrade between levels | ✅ Feasible | Event-driven probing on the phone + make-before-break session handover ([connection-levels.md](../architecture/connection-levels.md)). |
 | Noise suppression | ✅ Feasible | RNNoise on the **PC** (`nnnoiseless`, pure Rust, ~1–2% of a core). The phone sends raw audio. "Threshold" is implemented as a noise gate. |
 | Echo cancellation | ⚠️ Feasible, **highest quality risk** | Must run on the **PC** (the echo comes from PC speakers; the phone can't hear the reference). Variable network latency and clock drift make AEC hard. Works best on USB. |

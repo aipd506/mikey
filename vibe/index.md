@@ -93,7 +93,7 @@ vibe/
 | File | What's in it | Read when |
 |---|---|---|
 | [architecture.md](architecture/architecture.md) | System diagram, key decisions, PC threads | Starting any module |
-| [connection-levels.md](architecture/connection-levels.md) | L1 USB debugging, L2 USB tethering, L3 Bluetooth, L4 Wi‑Fi, probing, handover, discovery beacon | Transport work |
+| [connection-levels.md](architecture/connection-levels.md) | L1 USB debugging, L2 USB tethering, L3 Wi‑Fi, L4 Bluetooth, probing, handover, discovery beacon | Transport work |
 | [sessions-trust.md](architecture/sessions-trust.md) | Identity, sessions, trust rules | Handshake and pairing |
 | [wire-protocol.md](architecture/wire-protocol.md) | Framing, frame types, media header, handshake, liveness | Anything on the wire — phone and PC must match exactly |
 | [media-pipeline.md](architecture/media-pipeline.md) | Audio and video capture/processing, virtual devices | Audio or video work |
@@ -135,6 +135,6 @@ vibe/
 
 - Android: Kotlin + Jetpack Compose, package `com.mikey`, min SDK 26.
 - PC: Rust tray app, binary `mikey`, Windows 10/11 + Linux. TCP `7653`, UDP beacon `7654`.
-- Connection levels, best first: 1 USB debugging › 2 USB tethering › 3 Bluetooth (audio only) › 4 Wi‑Fi.
+- Connection levels, best first: 1 USB debugging › 2 USB tethering › 3 Wi‑Fi › 4 Bluetooth (audio only).
 - The phone is always the client; the PC is always the server.
 - Mic and camera always start off. All audio processing runs on the PC.

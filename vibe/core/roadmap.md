@@ -62,7 +62,7 @@ Android
 - [x] Camera half: live state with lens label (no video on the phone), flip button (top-left, only when on)
 - [x] Aspect ratio + quality + fps settings; auto quality by level; thermal back-off (the switches come with the UI)
 - [x] Camera FGS type added only while camera is on
-- [x] Camera disabled with explanation on Level 3 (and when the PC has no virtual camera)
+- [x] Camera disabled with explanation on Level 4 (and when the PC has no virtual camera)
 
 PC
 - [x] JPEG decode → virtual camera (softcam / v4l2loopback)
@@ -92,7 +92,7 @@ PC
 **Goal:** a stranger installs and uses Mikey in under 5 minutes.
 **Done when:** v1.0.0 is tagged with signed APK + Windows installer + Linux packages attached, README complete, and the test matrix ([test-matrix.md](../rules/test-matrix.md)) passes.
 
-- [ ] Optional: AES-GCM on Level 4; UDP audio path if measurements justify it ([wire-protocol.md](../architecture/wire-protocol.md))
+- [ ] Optional: AES-GCM on Level 3; UDP audio path if measurements justify it ([wire-protocol.md](../architecture/wire-protocol.md))
 - [ ] Optional: Media Foundation virtual camera on Windows 11
 - [ ] "Open Mikey on phone when plugged in" (ADB `am start`)
 - [ ] OEM battery-optimization guidance in the app (one-time, only on known-aggressive OEMs)

@@ -5,7 +5,7 @@
 - Android 8.0+ (API 26+) phones, arm64-v8a and armeabi-v7a.
 - Windows 10/11 x64 and mainstream Linux desktops (Ubuntu, Fedora, Arch; PipeWire or PulseAudio; X11 or Wayland).
 - Mic streaming on all four connection levels.
-- Camera streaming on Levels 1, 2 and 4.
+- Camera streaming on Levels 1, 2 and 3.
 - Front/back flip, aspect ratio, basic quality settings.
 - Noise suppression, noise gate, echo cancellation — **all on the PC**; the phone sends raw audio.
 - One active phone per PC at a time (multiple phones *known*, one *streaming*).

@@ -15,20 +15,20 @@
 │    │    ├─ TetherTransport     TCP over rndis0/usb0/ncm0 interface             │
 │    │    ├─ BluetoothTransport  RFCOMM socket, Mikey service UUID               │
 │    │    └─ WifiTransport       TCP over Wi-Fi / hotspot interface              │
-│    ├─ Discovery              UDP beacon on a chosen interface (L2, L4)         │
+│    ├─ Discovery              UDP beacon on a chosen interface (L2, L3)         │
 │    ├─ AudioCapture           raw 48 kHz mono (no phone DSP) → [Opus] → frames  │
 │    ├─ VideoCapture           CameraX ImageAnalysis → JPEG → frames             │
 │    ├─ Settings               SharedPreferences, pushed to PC on connect/change │
 │    └─ Notifier               persistent notification + actions                 │
 └────────────────────────────────────────────────────────────────────────────────┘
-          │ L1 USB (adb reverse)   │ L2 USB tether   │ L3 Bluetooth   │ L4 Wi-Fi
+          │ L1 USB (adb reverse)   │ L2 USB tether   │ L3 Wi-Fi       │ L4 Bluetooth
           ▼                        ▼                 ▼                ▼
 ┌──────────────────────────────── PC: Mikey for PC (mikey) ─────────────────────┐
 │                                                                                │
 │  Listeners                                                                     │
-│    TCP  0.0.0.0:7653        (L1 arrives on 127.0.0.1, L2/L4 on LAN IPs)        │
+│    TCP  0.0.0.0:7653        (L1 arrives on 127.0.0.1, L2/L3 on LAN IPs)        │
 │    UDP  0.0.0.0:7654        discovery beacon responder                         │
-│    RFCOMM server            SDP record with Mikey UUID (L3)                    │
+│    RFCOMM server            SDP record with Mikey UUID (L4)                    │
 │    AdbWatcher               tracks devices, runs `adb reverse`, opens app      │
 │                                                                                │
 │  SessionManager             auth (HELLO/token), trust, ask-before-join,        │

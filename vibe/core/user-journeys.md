@@ -20,8 +20,8 @@
 |---|---|
 | 1 USB debugging | Phone shows *"Allow USB debugging?"* → tick *Always allow from this computer* → Allow. The PC tray icon turns amber and the flyout/notification says *"Tap Allow on your phone"* while waiting. |
 | 2 USB tethering | User turns on USB tethering (Mikey offers a shortcut to that settings page when it sees a USB cable but no Level 1/2 link). |
-| 3 Bluetooth | Phone and PC must be paired once in the OS Bluetooth settings. Mikey asks for the Bluetooth permission the first time it tries this level. |
-| 4 Wi‑Fi | First time only: the PC shows *"Pixel 7 wants to connect — Allow / Deny"* via notification and flyout banner. After that, it joins silently. |
+| 3 Wi‑Fi | First time only: the PC shows *"Pixel 7 wants to connect"* with *Allow* and *Deny* in a notification and the flyout banner. After that, it joins silently. |
+| 4 Bluetooth | Phone and PC must be paired once in the OS Bluetooth settings. Mikey asks for the Bluetooth permission the first time it tries this level. |
 
 ## Daily use
 
