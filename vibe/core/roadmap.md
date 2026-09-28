@@ -29,8 +29,8 @@ PC
 > Order on Android: every feature first, the full UI last. Until then the app keeps its plain Phase 1 screen, with debug-only controls where a feature needs input.
 
 Android
-- [ ] Full UI per [phone-ux.md](phone-ux.md) (split halves, chevron + drawer, status dot 3 colors, rotation behavior)
-- [ ] Settings persistence per [phone-ux.md](phone-ux.md)
+- [x] Full UI per [phone-ux.md](phone-ux.md) (split halves, chevron + drawer, status dot 3 colors); glyph rotation still to do
+- [x] Settings persistence per [phone-ux.md](phone-ux.md)
 - [x] `TransportManager` for USB debugging, USB tethering and Wi‑Fi: event-driven probing, make-before-break upgrade, 10 s hysteresis ([connection-levels.md](../architecture/connection-levels.md))
 - [x] UDP discovery beacon; last-IP fast path
 - [x] Interface-pinned sockets (`Network.bindSocket`)
@@ -77,9 +77,9 @@ PC
 **Done when:** with PC speakers at normal volume, the far end hears no echo on USB and only minor residual echo on Wi‑Fi; typing and fan noise are clearly reduced with noise suppression on.
 
 Android
-- [ ] Noise suppression toggle + strength slider (control message only — phone does no DSP)
-- [ ] Echo cancellation toggle; noise gate threshold slider (Advanced)
-- [ ] Settings greyed out when the PC doesn't report the capability
+- [x] Noise suppression toggle + strength slider (control message only: the phone does no DSP)
+- [x] Echo cancellation toggle; noise gate threshold slider (Advanced)
+- [x] Settings greyed out when the PC doesn't report the capability
 
 PC
 - [x] Noise gate, RNNoise (`nnnoiseless`)

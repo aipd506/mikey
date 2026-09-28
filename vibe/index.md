@@ -9,10 +9,10 @@ The `vibe/` directory is the single source of truth for the Mikey project. It co
 
 ## Current Status
 
-- **Phase:** 2 (Android) / Phases 1–4 complete (PC) — Audio, Video, DSP, Flyout UI, and Installers locked in (Checklist: [core/roadmap.md](core/roadmap.md)).
-- **Android (`android/`):** Phase 1 complete (TCP mic streaming over USB debugging, `MikeyService` foreground service). Builds with `./gradlew assembleDebug`.
+- **Phase:** Android has Phases 1 to 4 done, with the full UI. PC has Phases 1 to 4 done. Next is Phase 5, the release (checklist: [core/roadmap.md](core/roadmap.md)).
+- **Android (`android/`):** mic and camera over USB debugging, USB tethering, Wi-Fi and Bluetooth with automatic switching; Opus, AAudio capture, settings kept in sync with the PC, and the full UI per [phone-ux.md](core/phone-ux.md). Builds with `./gradlew assembleDebug`.
 - **PC (`pc/`):** Complete (Phases 1–4). Multi-transport tray app (`mikey`). TCP :7653, UDP beacon :7654, BT RFCOMM, SessionManager, Opus/PCM decoding, adaptive jitter buffer, drift resampler, RNNoise noise suppression, SpeexDSP AEC loopback cancellation, camera pipeline (JPEG decode, letterboxing, vcam, pop-out preview), Win32 GDI flyout companion app, and Inno Setup / Linux packaging installers. All modules <= 175 lines.
-- **Next immediate step:** Phase 2 — Android Phase 2 (full UI per [phone-ux.md](core/phone-ux.md), `TransportManager`, Opus capture, pairing tokens) and completing PC Linux support.
+- **Next immediate step:** real-device tests of every level on both sides, then Phase 5: signed builds, installers and docs.
 
 ---
 

@@ -11,30 +11,30 @@ The screen is split into two equal halves. Positions never change — the layout
 │                                  │
 │           ( CAM ICON )           │  ← top half: camera
 │                                  │     off  = dimmed outline icon on black
-│                                  │     on   = filled icon + lens label (no video)
+│                                  │     on   = white circle, red on-air dot, lens label (no video)
 │                                  │
 ├──────────────── ˄ ───────────────┤  ← chevron, centered on the split line
 │                                  │     tap → settings drawer
 │                                  │
 │           ( MIC ICON )           │  ← bottom half: microphone
 │                                  │     off  = dimmed outline icon
-│                                  │     on   = filled green icon + level meter ring
+│                                  │     on   = white circle, red on-air dot, level ring
 │                                  │
 │                              [●] │  ← status dot, bottom-right
 └──────────────────────────────────┘
 ```
 
 - **Each half is one giant tap target.** Tap anywhere in the top half toggles the camera; anywhere in the bottom half toggles the mic.
-- **Flip button** (top-left) sits diagonally opposite the status dot (bottom-right). It is a small dimmed circular button (40 dp, icon-off color, 0.6 alpha) and only appears while the camera is on. Tapping flips front ↔ back live.
+- **Flip button** (top-left) sits diagonally opposite the status dot (bottom-right). It is a small circular button (40 dp, black with a hairline border) and only appears while the camera is on. Tapping flips front ↔ back live.
 - **Mic level ring:** when the mic is on, a thin ring around the mic icon reflects input level. This is the one allowed "live" element — it proves audio is actually flowing, which is the core honesty promise.
-- **No labels.** Icons are universal. Accessibility labels are provided for TalkBack.
+- **Short labels.** Under each circle a label in capitals says the state (*MIC LIVE*, *CAMERA OFF · TAP TO START*), plus one sentence when the user has to act. No timer, no camera preview, and no text next to the status dot. TalkBack reads the labels in sentence case.
 
 ## 6.2 States
 
 | Element | Off | On | Unavailable |
 |---|---|---|---|
-| Camera half | Dimmed outline icon | Filled blue icon + lens label (e.g. *"Back camera"*); the video shows only on the PC | Icon with a slash + one-line reason on tap (e.g. *"Camera isn't available over Bluetooth"*) |
-| Mic half | Dimmed outline icon | Filled green icon + level ring | Icon with slash + reason (e.g. permission denied) |
+| Camera half | Dim outline circle, *"Camera off · tap to start"* | White circle with the red on-air dot and the lens (*"Back camera"*); a white outline with *"· waiting for PC"* or *"· not reaching PC"* until the PC receives. The video shows only on the PC | Dashed circle, slashed icon, *"Camera · unavailable"*, and the reason on tap (*"Camera isn't available over Bluetooth. Connect with USB or Wi-Fi."*) |
+| Mic half | Dim outline circle, *"Mic off · tap to start"* | White circle, red on-air dot and the level ring (*"Mic live"*); a slashed icon while muted; a white outline and one sentence while it isn't reaching the PC | Dashed circle, slashed icon, *"Mic · no permission"* and *"Microphone access is off. Tap to allow."* |
 | Status dot | — | Green = streaming path live | Red = no PC · Amber = waiting for PC approval |
 
 The status dot has three colors (not two) because *waiting for approval* is a real state the user must be told about; everything else stays binary.
@@ -49,6 +49,8 @@ A bottom sheet that slides up to ~60% height. One scroll, no nested screens. Clo
 
   Camera
     Aspect ratio          [16:9] [4:3] [1:1]
+  Mic
+    Mute                  [ toggle ]            ← only while the mic is on
   Audio
     Noise suppression     [ toggle ]            ← runs on the PC
     Echo cancellation     [ toggle ]            ← runs on the PC; greyed if PC lacks it
@@ -61,7 +63,7 @@ A bottom sheet that slides up to ~60% height. One scroll, no nested screens. Clo
       Frame rate                [Auto] [30] [15]
       Keep screen on            [ toggle ]  (off)
       Remember mic/camera state [ toggle ]  (off)  ← see § 6.6
-      Connection levels         USB debugging ✓  USB tethering ✓  Bluetooth ✓  Wi-Fi ✓
+      Connection levels         USB debugging ✓  USB tethering ✓  Wi-Fi ✓  Bluetooth ✓
       Manual PC address         [ 192.168.1.20 ]   ← only needed on locked-down networks
       Paired computers          DESKTOP-ANU  [Forget]
       Open USB tethering settings  ›
@@ -73,7 +75,7 @@ A bottom sheet that slides up to ~60% height. One scroll, no nested screens. Clo
 Notes:
 - Flip camera is on the main screen button `[⟲]` and also triggered remotely from the PC flyout. The last used lens is remembered.
 - **All audio processing runs on the PC.** The phone only captures raw audio (and compresses it where the link needs it). This keeps the phone cool and battery-light, gives the echo canceller a clean signal, and makes quality identical on every phone brand.
-- **Bidirectional Common Settings:** All audio DSP and video controls (Noise suppression toggle & strength, Echo cancellation toggle, Noise gate threshold, Soft mute, Camera lens flip, Preview) are common settings. Modifying them on the phone transmits a `0x04 CONTROL` frame to the PC; modifying them on the PC flyout transmits a `0x04 CONTROL` frame to the phone. Both sides stay in exact sync. Settings are disabled or greyed out if either device lacks the capability.
+- **Bidirectional Common Settings:** All audio DSP and video controls (Noise suppression toggle & strength, Echo cancellation toggle, Noise gate threshold, Soft mute, Camera lens flip) are common settings, shared with the PC flyout; the preview window is PC only. The phone sends a change the moment it's made (a slider when the finger lifts), and a change from the PC updates the open sheet at once. Modifying them on the phone transmits a `0x04 CONTROL` frame to the PC; modifying them on the PC flyout transmits a `0x04 CONTROL` frame to the phone. Both sides stay in exact sync. Settings are disabled or greyed out if either device lacks the capability.
 
 ## 6.4 Rotation behaviour
 
@@ -111,8 +113,9 @@ Everything the user sets is saved immediately to `SharedPreferences` and restore
 | `audio.gateDb` | off |
 | `ui.keepScreenOn` | off |
 | `ui.rememberState` | off |
+| `ui.lastMicOn`, `ui.lastCameraOn` | off (what *Remember mic/camera state* restores) |
 | `levels.enabled` | all four |
-| `pc.lastId`, `pc.lastIp`, `pc.btAddress`, `pc.token` | — (learned) |
+| `pc.lastId`, `pc.lastIp`, `pc.btAddress`, `pc.token`, `pc.lastLevel` | learned from the PC |
 | `device.id` | random 128-bit, generated once |
 
 **Mic and camera always start off** — this is a privacy promise. If *Remember mic/camera state* is turned on, Mikey restores the previous on/off state at launch (still only from the foreground, per Android rules).
