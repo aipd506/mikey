@@ -2,6 +2,7 @@
 
 #![cfg(windows)]
 
+use super::types::WM_APP_SHOW;
 use super::win32;
 use super::window::FlyoutWindow;
 
@@ -80,6 +81,10 @@ pub(crate) unsafe extern "system" fn flyout_wndproc(
                 let x = (lparam & 0xFFFF) as i16 as i32;
                 let y = ((lparam >> 16) & 0xFFFF) as i16 as i32;
                 flyout.on_lbutton_up(x, y);
+                return 0;
+            }
+            WM_APP_SHOW => {
+                flyout.show_requested = true;
                 return 0;
             }
             win32::WM_DESTROY => {

@@ -1,4 +1,5 @@
-//! Processing switches the phone owns (wire-protocol.md CONTROL), next to the ones in mod.rs.
+//! Processing switches the phone owns (wire-protocol.md CONTROL), next to the ones in mod.rs,
+//! and the output device's rate.
 
 use super::JitterBuffer;
 use std::sync::atomic::Ordering;
@@ -30,6 +31,11 @@ impl JitterBuffer {
 
     pub fn gate_db(&self) -> Option<f32> {
         Some(f32::from_bits(self.gate_db_bits.load(Ordering::Acquire))).filter(|db| !db.is_nan())
+    }
+
+    /// The output device's sample rate. The phone's 48 kHz is resampled to it on the way out.
+    pub fn set_output_rate(&self, rate: u32) {
+        self.output_rate.store(rate.max(1), Ordering::Relaxed);
     }
 }
 

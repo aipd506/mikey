@@ -6,12 +6,14 @@ pub type FnCreateCamera =
     unsafe extern "C" fn(width: i32, height: i32, framerate: f32) -> *mut c_void;
 pub type FnSendFrame = unsafe extern "C" fn(camera: *mut c_void, frame: *const u8);
 pub type FnDeleteCamera = unsafe extern "C" fn(camera: *mut c_void);
+pub type FnIsConnected = unsafe extern "C" fn(camera: *mut c_void) -> bool;
 
 pub struct SoftcamApi {
     _dll: usize,
     pub create_camera: FnCreateCamera,
     pub send_frame: FnSendFrame,
     pub delete_camera: FnDeleteCamera,
+    pub is_connected: FnIsConnected,
 }
 
 #[cfg(windows)]
@@ -43,8 +45,10 @@ impl SoftcamApi {
             let p_create = GetProcAddress(h_module, c"scCreateCamera".as_ptr());
             let p_send = GetProcAddress(h_module, c"scSendFrame".as_ptr());
             let p_delete = GetProcAddress(h_module, c"scDeleteCamera".as_ptr());
+            let p_connected = GetProcAddress(h_module, c"scIsConnected".as_ptr());
 
-            if p_create.is_null() || p_send.is_null() || p_delete.is_null() {
+            if p_create.is_null() || p_send.is_null() || p_delete.is_null() || p_connected.is_null()
+            {
                 FreeLibrary(h_module);
                 return None;
             }
@@ -54,6 +58,7 @@ impl SoftcamApi {
                 create_camera: std::mem::transmute::<*const c_void, FnCreateCamera>(p_create),
                 send_frame: std::mem::transmute::<*const c_void, FnSendFrame>(p_send),
                 delete_camera: std::mem::transmute::<*const c_void, FnDeleteCamera>(p_delete),
+                is_connected: std::mem::transmute::<*const c_void, FnIsConnected>(p_connected),
             })
         }
     }

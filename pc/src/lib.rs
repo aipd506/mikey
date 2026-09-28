@@ -3,6 +3,8 @@ pub mod autostart;
 pub mod config;
 #[cfg(windows)]
 pub mod flyout;
+#[cfg(windows)]
+pub mod instance;
 pub mod notify;
 pub mod protocol;
 pub mod session;

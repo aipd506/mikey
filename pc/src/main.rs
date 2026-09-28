@@ -41,6 +41,13 @@ fn main() {
         }
     }
 
+    // A second launch opens the running Mikey instead of starting another.
+    #[cfg(windows)]
+    if !test_mode && mikey::instance::already_running() {
+        mikey::instance::open_running();
+        return;
+    }
+
     println!("=== Mikey PC (Multi-Transport Engine) ===");
 
     let running = Arc::new(AtomicBool::new(true));
@@ -54,83 +61,50 @@ fn main() {
     let cfg = session_manager.config();
     println!("[pc] ID: {}, Name: {}", cfg.pc_id, cfg.pc_name);
 
-    // 2. Check ADB status (Level 1: USB Debugging)
-    if cfg.levels.usb_debugging {
-        match adb::check_adb() {
-            Ok(ver) => {
-                let first_line = ver.lines().next().unwrap_or(&ver);
-                println!("[adb] Found {}", first_line);
-            }
-            Err(e) => {
-                eprintln!(
-                    "[adb] Not available: {}. Ensure Android platform-tools are in PATH.",
-                    e
-                );
-            }
-        }
-        let _adb_handle = adb::start_adb_watcher(PORT_TCP, Arc::clone(&running));
-    }
-
-    // 3. Check virtual microphone device status (setup is accessible anytime via flyout)
-    #[cfg(windows)]
-    {
-        let (virt_ready, _) = sink::check_virtual_device_status();
-        let is_branded = sink::is_mikey_branded();
-        if !virt_ready || !is_branded {
-            println!(
-                "[mikey] Note: Virtual microphone not yet configured as 'Mikey Mic'. Setup available via flyout companion."
-            );
-        }
-    }
-
-    // 4. Initialize audio output device (Mikey Audio Bridge / VB-Cable / default output)
-    let _audio_stream = match sink::find_output_device() {
-        Ok((device, name, is_vb_cable)) => {
-            if is_vb_cable {
-                println!("[audio] Using virtual mic device: {}", name);
-            } else {
-                println!(
-                    "[audio] No virtual mic found. Using fallback output: {}",
-                    name
-                );
-            }
-
-            match sink::start_audio_stream(&device, Arc::clone(&jitter_buffer)) {
-                Ok(stream) => {
-                    println!("[audio] Output stream initialized (48 kHz)");
-                    Some(stream)
-                }
-                Err(e) => {
-                    eprintln!("[audio] Failed to start audio playback stream: {}", e);
-                    None
-                }
-            }
-        }
-        Err(e) => {
-            eprintln!("[audio] Error finding output device: {}", e);
-            None
-        }
-    };
-
-    // 4b. Initialize AEC loopback reference stream (speaker sound cancellation)
-    let _loopback_stream = match sink::start_loopback_stream(Arc::clone(&jitter_buffer)) {
-        Ok(stream) => {
-            println!(
-                "[audio] AEC loopback reference stream active (speaker sound cancellation enabled)"
-            );
-            Some(stream)
-        }
-        Err(e) => {
-            eprintln!("[audio] Note: Loopback stream not available: {}", e);
-            None
-        }
-    };
-
     // --test-tone mode: play a 3-second tone to verify audio pipeline, then exit
     if test_mode {
+        let _streams = sink::start_output(&jitter_buffer);
         test_tone::play_test_tone(&jitter_buffer, 3);
         thread::sleep(Duration::from_millis(500)); // drain buffer
         return;
+    }
+
+    // 2. The tray comes up first, so Mikey shows at once. Started by hand, not at login, it
+    // opens its flyout too.
+    #[cfg(windows)]
+    let _tray_handle = mikey::tray::start_tray_thread(
+        session_manager.clone(),
+        Arc::clone(&video_pipeline),
+        Arc::clone(&jitter_buffer),
+        Arc::clone(&running),
+        !args.iter().any(|a| a == "--autostart"),
+    );
+
+    // 3. Everything slow runs on one thread, in order: listing audio devices can take seconds on
+    // some PCs, and the first softcam registration remaps HKCR for the whole process, which
+    // audio setup must not see. The audio streams live as long as this thread.
+    {
+        let jitter_buffer = Arc::clone(&jitter_buffer);
+        let video_pipeline = Arc::clone(&video_pipeline);
+        let running = Arc::clone(&running);
+        thread::spawn(move || {
+            let _streams = sink::start_output(&jitter_buffer);
+            #[cfg(windows)]
+            if !sink::update_virtual_device_status() {
+                println!(
+                    "[mikey] Note: Virtual microphone not yet configured as 'Mikey Mic'. Setup available via flyout companion."
+                );
+            }
+            video_pipeline.load_vcam();
+            while running.load(Ordering::Relaxed) {
+                thread::park_timeout(Duration::from_secs(1));
+            }
+        });
+    }
+
+    // Level 1: USB Debugging. The watcher checks adb itself, off the startup path.
+    if cfg.levels.usb_debugging {
+        let _adb_handle = adb::start_adb_watcher(PORT_TCP, Arc::clone(&running));
     }
 
     // 4. Start UDP Discovery Beacon (Level 2 & Level 3 discovery)
@@ -154,16 +128,20 @@ fn main() {
         );
     }
 
-    // 6. Bind and run TCP listener on 0.0.0.0:PORT_TCP (Level 1, Level 2, Level 3)
-    let listener = match tcp::bind_listener() {
-        Ok(l) => l,
-        Err(e) => {
-            eprintln!(
-                "[tcp] Failed to bind TCP listener on port {}: {}",
+    // 6. Bind and run TCP listener on 0.0.0.0:PORT_TCP (Level 1, Level 2, Level 3). A busy port
+    // (often an older Mikey still running) is retried rather than quitting with no word.
+    let listener = loop {
+        match tcp::bind_listener() {
+            Ok(l) => break l,
+            Err(e) => eprintln!(
+                "[tcp] Failed to bind TCP listener on port {}: {}. Retrying.",
                 PORT_TCP, e
-            );
+            ),
+        }
+        if !running.load(Ordering::Relaxed) {
             return;
         }
+        thread::sleep(Duration::from_secs(2));
     };
 
     let _tcp_handle = tcp::start_tcp_listener(
@@ -175,15 +153,6 @@ fn main() {
     );
 
     println!("[tcp] Listening on 0.0.0.0:{}", PORT_TCP);
-
-    // 7. Start System Tray icon, menu & flyout companion
-    #[cfg(windows)]
-    let _tray_handle = mikey::tray::start_tray_thread(
-        session_manager.clone(),
-        Arc::clone(&video_pipeline),
-        Arc::clone(&jitter_buffer),
-        Arc::clone(&running),
-    );
 
     println!("[ready] Waiting for Mikey Android client to connect...");
     println!("[hint] Run with --test-tone to verify audio without a phone.");

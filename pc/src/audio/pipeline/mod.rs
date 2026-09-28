@@ -10,7 +10,7 @@ pub use controls::gate_rms;
 
 use crate::audio::dsp::AudioDsp;
 use normalizer::AudioNormalizer;
-use resample::{downmix_and_resample_reference, drift_resample_pop, JitterStats};
+use resample::{downmix_and_resample_reference, JitterStats};
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
 use std::sync::Mutex;
@@ -30,6 +30,7 @@ pub struct JitterBuffer {
     dsp: Mutex<AudioDsp>,
     stats: Mutex<JitterStats>,
     resample_phase: Mutex<f32>,
+    output_rate: AtomicU32,
 }
 
 impl JitterBuffer {
@@ -49,6 +50,7 @@ impl JitterBuffer {
             dsp: Mutex::new(AudioDsp::new()),
             stats: Mutex::new(JitterStats::new()),
             resample_phase: Mutex::new(0.0),
+            output_rate: AtomicU32::new(SAMPLE_RATE),
         }
     }
 
@@ -141,17 +143,6 @@ impl JitterBuffer {
                 buf.drain(0..excess);
             }
         }
-    }
-
-    pub fn pop_samples(&self, out: &mut [f32], channels: u16) {
-        let ch = channels.max(1) as usize;
-        let mut started = self.started.lock().unwrap();
-        let mut buf = self.buffer.lock().unwrap();
-        let target = self.adaptive_target_samples.load(Ordering::Relaxed);
-        let mut phase = self.resample_phase.lock().unwrap();
-        let gain = self.get_auto_gain();
-
-        drift_resample_pop(&mut buf, out, ch, target, &mut phase, &mut started, gain);
     }
 
     pub fn reset(&self) {

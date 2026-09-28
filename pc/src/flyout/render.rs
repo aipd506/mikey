@@ -26,6 +26,9 @@ impl FlyoutWindow {
         }
 
         let height = self.current_height();
+        if height != self.height {
+            self.update_window_region(height);
+        }
         let mem_dc = unsafe { win32::CreateCompatibleDC(hdc) };
         let mem_bmp = unsafe { win32::CreateCompatibleBitmap(hdc, FLYOUT_WIDTH, height) };
         let old_bmp = unsafe { win32::SelectObject(mem_dc, mem_bmp) };

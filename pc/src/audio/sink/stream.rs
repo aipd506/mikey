@@ -1,8 +1,42 @@
+use super::find_output_device;
 use crate::audio::pipeline::JitterBuffer;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, SampleFormat, Stream, StreamConfig};
 use std::io::{self, Error};
 use std::sync::Arc;
+
+/// Opens the phone's audio output (the virtual mic, else the default speakers) and the speaker
+/// capture that echo cancellation compares against. The streams stop when dropped.
+pub fn start_output(jitter_buffer: &Arc<JitterBuffer>) -> Vec<Stream> {
+    let mut streams = Vec::new();
+    match find_output_device() {
+        Ok((device, name, is_vb_cable)) => {
+            if is_vb_cable {
+                println!("[audio] Using virtual mic device: {}", name);
+            } else {
+                println!(
+                    "[audio] No virtual mic found. Using fallback output: {}",
+                    name
+                );
+            }
+            match start_audio_stream(&device, Arc::clone(jitter_buffer)) {
+                Ok(stream) => streams.push(stream),
+                Err(e) => eprintln!("[audio] Failed to start audio playback stream: {}", e),
+            }
+        }
+        Err(e) => eprintln!("[audio] Error finding output device: {}", e),
+    }
+    match start_loopback_stream(Arc::clone(jitter_buffer)) {
+        Ok(stream) => {
+            println!(
+                "[audio] AEC loopback reference stream active (speaker sound cancellation enabled)"
+            );
+            streams.push(stream);
+        }
+        Err(e) => eprintln!("[audio] Note: Loopback stream not available: {}", e),
+    }
+    streams
+}
 
 pub fn start_audio_stream(device: &Device, jitter_buffer: Arc<JitterBuffer>) -> io::Result<Stream> {
     let supported_config = device
@@ -12,6 +46,8 @@ pub fn start_audio_stream(device: &Device, jitter_buffer: Arc<JitterBuffer>) -> 
     let channels = supported_config.channels();
     let sample_format = supported_config.sample_format();
     let config: StreamConfig = supported_config.into();
+    // Shared-mode devices only run at their own rate, often 44.1 kHz, so the output resamples.
+    jitter_buffer.set_output_rate(config.sample_rate.0);
 
     let err_fn = |err| eprintln!("[audio] Stream error: {}", err);
 
@@ -58,6 +94,10 @@ pub fn start_audio_stream(device: &Device, jitter_buffer: Arc<JitterBuffer>) -> 
     stream
         .play()
         .map_err(|e| Error::other(format!("failed to start playback stream: {}", e)))?;
+    println!(
+        "[audio] Output stream initialized ({} Hz)",
+        config.sample_rate.0
+    );
 
     Ok(stream)
 }
@@ -95,14 +135,13 @@ pub fn start_loopback_stream(jitter_buffer: Arc<JitterBuffer>) -> io::Result<Str
         }
         SampleFormat::I16 => {
             let jb = Arc::clone(&jitter_buffer);
+            let mut temp = Vec::new();
             default_output
                 .build_input_stream(
                     &config,
                     move |data: &[i16], _: &cpal::InputCallbackInfo| {
-                        let mut temp = vec![0.0f32; data.len()];
-                        for (d, &t) in temp.iter_mut().zip(data.iter()) {
-                            *d = (t as f32) / 32768.0;
-                        }
+                        temp.clear();
+                        temp.extend(data.iter().map(|&t| t as f32 / 32768.0));
                         jb.push_reference_samples(&temp, channels, sample_rate);
                     },
                     err_fn,

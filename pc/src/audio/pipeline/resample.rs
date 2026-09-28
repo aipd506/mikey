@@ -1,6 +1,32 @@
 use super::constants::*;
+use super::JitterBuffer;
 use std::collections::VecDeque;
+use std::sync::atomic::Ordering;
 use std::time::Instant;
+
+impl JitterBuffer {
+    /// Fills the output device's buffer, resampled from the phone's 48 kHz to the device's rate.
+    pub fn pop_samples(&self, out: &mut [f32], channels: u16) {
+        let ch = channels.max(1) as usize;
+        let mut started = self.started.lock().unwrap();
+        let mut buf = self.buffer.lock().unwrap();
+        let target = self.adaptive_target_samples.load(Ordering::Relaxed);
+        let mut phase = self.resample_phase.lock().unwrap();
+        let gain = self.get_auto_gain();
+        let step = SAMPLE_RATE as f32 / self.output_rate.load(Ordering::Relaxed) as f32;
+
+        drift_resample_pop(
+            &mut buf,
+            out,
+            ch,
+            target,
+            step,
+            &mut phase,
+            &mut started,
+            gain,
+        );
+    }
+}
 
 pub(crate) struct JitterStats {
     pub(crate) last_arrival: Option<Instant>,
@@ -47,11 +73,15 @@ pub(crate) fn downmix_and_resample_reference(
     }
 }
 
+/// `step` is how many 48 kHz samples one output frame advances: 48 kHz over the device's rate.
+/// Drift correction then nudges it by up to MAX_DRIFT_RATIO to hold the buffer at `target`.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn drift_resample_pop(
     buf: &mut VecDeque<i16>,
     out: &mut [f32],
     channels: usize,
     target: usize,
+    step: f32,
     phase: &mut f32,
     started: &mut bool,
     gain: f32,
@@ -70,7 +100,7 @@ pub(crate) fn drift_resample_pop(
     let current_depth = buf.len();
     let delta = current_depth as f32 - target as f32;
     let speed_adjust = (delta / (target as f32 * 2.0)).clamp(-MAX_DRIFT_RATIO, MAX_DRIFT_RATIO);
-    let effective_rate = 1.0 + speed_adjust;
+    let effective_rate = step * (1.0 + speed_adjust);
 
     let mut out_idx = 0;
     for _ in 0..frames_needed {

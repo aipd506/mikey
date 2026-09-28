@@ -57,7 +57,8 @@ pub fn set_autostart(enable: bool) -> io::Result<()> {
 
     let ret = if enable {
         let exe_path = env::current_exe()?;
-        let path_str = format!("\"{}\"", exe_path.to_string_lossy());
+        // --autostart keeps the flyout closed at login; a launch by hand opens it.
+        let path_str = format!("\"{}\" --autostart", exe_path.to_string_lossy());
         let wide_path: Vec<u16> = OsStr::new(&path_str)
             .encode_wide()
             .chain(std::iter::once(0))

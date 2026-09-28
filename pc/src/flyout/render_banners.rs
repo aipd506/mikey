@@ -107,8 +107,7 @@ pub fn render_banners(
     }
 
     // ── Virtual mic setup warning ──
-    let (virt_ready, _) = crate::audio::sink::check_virtual_device_status();
-    if !virt_ready {
+    if !crate::audio::sink::virtual_device_ready() {
         y += 2;
         if let Some(g) = g_opt {
             draw_hero_alert(g, graphics, 24.0, (y + 13) as f32, ARGB_STATUS_WAIT);

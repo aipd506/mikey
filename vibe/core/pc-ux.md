@@ -12,6 +12,7 @@
   - **Right-Click:** Opens the flyout directly, or provides a fast 3-item fallback menu (`Open Mikey`, `Mute Mic`, `Quit`).
   - **Light Dismiss:** The flyout automatically closes when it loses focus (clicking anywhere outside the dialog), pressing `Esc`, or clicking the tray icon again.
 - **Resource Footprint:** Starts at login. Consumes < 15 MB RAM when the flyout is closed. Zero background rendering or animation overhead.
+- **Launch:** The tray icon shows at once; audio devices, adb and the virtual camera come up in the background. Started by hand, Mikey opens the flyout, since the icon may sit in the hidden overflow. The login start passes `--autostart` and stays in the tray. Launching Mikey while it runs opens the running one's flyout instead of a second copy.
 
 ---
 

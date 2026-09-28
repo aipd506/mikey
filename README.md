@@ -169,6 +169,8 @@ cargo build --release
 # Binary → pc/target/release/mikey
 ```
 
+Test with the release build. A debug build is slower, even with its dependencies optimized.
+
 ---
 
 ## Product Principles
