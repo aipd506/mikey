@@ -36,7 +36,7 @@ Android
 - [x] Interface-pinned sockets (`Network.bindSocket`)
 - [x] Opus on Wi‑Fi (96 kbps / 10 ms, low-delay mode; raw PCM if lossless is on)
 - [x] Opus on Bluetooth (48 kbps / 20 ms, VOIP mode); needs the real-device test
-- [ ] AAudio low-latency capture
+- [x] AAudio low-latency capture (AudioRecord below Android 9, or if AAudio fails)
 - [x] Bluetooth transport (bonded computers only, cached MAC); needs the real-device test
 - [x] Notification: live state text, soft mute/unmute, Stop
 - [x] Pairing token storage; PENDING/REJECT handling; "Forget"
