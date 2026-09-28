@@ -32,7 +32,7 @@ Receivers **reject any length > 4 MiB** and close the connection (protects again
 - All JSON payloads are UTF-8.
 - `proto`: integer, the major protocol version. Currently `1`.
 - `device_id`, `pc_id`: the random 128-bit id as 32 lowercase hex characters.
-- `caps` (phone): list of what the phone can send right now. `["audio"]` in Phase 1, `["audio", "video"]` from Phase 3.
+- `caps` (phone): list of what the phone can send right now. `["audio"]` in Phase 1, `["audio", "video"]` from Phase 3 (just `["audio"]` over Bluetooth or on a phone without a camera).
 - Receivers ignore JSON fields and frame types they don't know, so either side can add new ones without breaking the other.
 - `resume` is not used yet. The PC resumes a held session by `device_id` within 30 s of a drop and answers `resumed: true`.
 

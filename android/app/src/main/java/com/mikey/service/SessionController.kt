@@ -1,6 +1,7 @@
 package com.mikey.service
 
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.SystemClock
 import android.util.Log
@@ -70,6 +71,7 @@ class SessionController(context: Context, private val listener: Listener) {
     }
 
     private val settings = Settings(context)
+    private val hasCamera = context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)
     private val transports = TransportManager(context, settings, Discovery(settings.deviceId, Build.MODEL), listener::onCableHint)
     private val wifiLock = WifiLatencyLock(context)
     private val frames = ArrayBlockingQueue<AudioFrame>(QUEUE_FRAMES)
@@ -255,7 +257,7 @@ class SessionController(context: Context, private val listener: Listener) {
      */
     private fun handshake(wire: Wire, silent: Boolean) {
         val paired = settings.pairedPc
-        wire.output.writeFrame(FrameType.HELLO, helloPayload(settings.deviceId, Build.MODEL, wire.level, paired?.token))
+        wire.output.writeFrame(FrameType.HELLO, helloPayload(settings.deviceId, Build.MODEL, wire.level, paired?.token, hasCamera))
         wire.output.flush()
         while (true) {
             val frame = wire.input.readFrame()
