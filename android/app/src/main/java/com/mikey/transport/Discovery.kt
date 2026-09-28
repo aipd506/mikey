@@ -9,8 +9,18 @@ import java.net.NetworkInterface
 import java.net.SocketException
 import java.net.SocketTimeoutException
 
-/** A PC that answered our probe. */
-class DiscoveredPc(val id: String, val name: String, val address: InetAddress, val port: Int, val proto: Int)
+/** A network interface we can probe: its name, our address on it, and its broadcast address. */
+class NetInterface(val name: String, val address: InetAddress, val prefixLength: Int, val broadcast: InetAddress) {
+    /** 2 for USB tethering, 4 for Wi-Fi and everything else (connection-levels.md). */
+    val level: Int = levelFor(name)
+
+    fun contains(other: InetAddress): Boolean = inSubnet(other.address, address.address, prefixLength)
+}
+
+/** A PC that answered our probe, and the interface the answer came in on. */
+class DiscoveredPc(val id: String, val name: String, val address: InetAddress, val port: Int, val proto: Int, val via: NetInterface?) {
+    val level: Int get() = via?.level ?: 4
+}
 
 /**
  * Finds PCs on the local networks with the UDP beacon (connection-levels.md): one probe broadcast
@@ -19,24 +29,38 @@ class DiscoveredPc(val id: String, val name: String, val address: InetAddress, v
  */
 class Discovery(private val deviceId: String, private val deviceName: String) {
 
-    /**
-     * Returns the PCs that answered, with [preferredPcId] first. Returns as soon as that one
-     * answers, otherwise after [WAIT_MS].
-     */
-    fun find(preferredPcId: String?): List<DiscoveredPc> = find(preferredPcId, broadcastAddresses())
+    /** Interfaces that are up, not loopback, and have an IPv4 address with a broadcast address. */
+    fun interfaces(): List<NetInterface> =
+        try {
+            NetworkInterface.getNetworkInterfaces()?.toList().orEmpty()
+                .filter { it.isUp && !it.isLoopback }
+                .flatMap { nic ->
+                    nic.interfaceAddresses.mapNotNull { ia ->
+                        ia.broadcast?.let { NetInterface(nic.name, ia.address, ia.networkPrefixLength.toInt(), it) }
+                    }
+                }
+        } catch (e: SocketException) {
+            emptyList()
+        }
 
-    internal fun find(preferredPcId: String?, targets: List<InetAddress>): List<DiscoveredPc> {
-        if (targets.isEmpty()) return emptyList()
+    fun find(preferredPcId: String?): List<DiscoveredPc> = find(preferredPcId, interfaces())
+
+    /**
+     * Returns the PCs that answered: [preferredPcId] first, then the best level first. Returns as
+     * soon as the preferred one answers, otherwise after [WAIT_MS].
+     */
+    internal fun find(preferredPcId: String?, interfaces: List<NetInterface>): List<DiscoveredPc> {
+        if (interfaces.isEmpty()) return emptyList()
         val probe = probePayload(deviceId, deviceName)
         val found = LinkedHashMap<String, DiscoveredPc>()
         try {
             DatagramSocket().use { socket ->
                 socket.broadcast = true
-                for (target in targets) {
+                for (target in interfaces) {
                     try {
-                        socket.send(DatagramPacket(probe, probe.size, target, BEACON_PORT))
+                        socket.send(DatagramPacket(probe, probe.size, target.broadcast, BEACON_PORT))
                     } catch (e: IOException) {
-                        Log.d(TAG, "Can't probe $target: $e")
+                        Log.d(TAG, "Can't probe ${target.name}: $e")
                     }
                 }
                 val deadline = System.nanoTime() + WAIT_MS * 1_000_000
@@ -51,26 +75,17 @@ class Discovery(private val deviceId: String, private val deviceName: String) {
                     } catch (e: SocketTimeoutException) {
                         break
                     }
-                    val pc = parseReply(packet.data, packet.length, packet.address) ?: continue
-                    found.putIfAbsent(pc.id, pc)
-                    if (pc.id == preferredPcId) break
+                    val reply = parseReply(packet.data, packet.length) ?: continue
+                    val via = interfaces.firstOrNull { it.contains(packet.address) }
+                    found.putIfAbsent(reply.id, DiscoveredPc(reply.id, reply.name, packet.address, reply.port, reply.proto, via))
+                    if (reply.id == preferredPcId) break
                 }
             }
         } catch (e: IOException) {
             Log.d(TAG, "Discovery failed: $e")
         }
-        return found.values.sortedByDescending { it.id == preferredPcId }
+        return found.values.sortedWith(compareBy({ it.id != preferredPcId }, { it.level }))
     }
-
-    private fun broadcastAddresses(): List<InetAddress> =
-        try {
-            NetworkInterface.getNetworkInterfaces()?.toList().orEmpty()
-                .filter { it.isUp && !it.isLoopback }
-                .flatMap { it.interfaceAddresses }
-                .mapNotNull { it.broadcast }
-        } catch (e: SocketException) {
-            emptyList()
-        }
 
     private companion object {
         const val TAG = "Discovery"
@@ -79,6 +94,9 @@ class Discovery(private val deviceId: String, private val deviceName: String) {
         const val MAX_REPLY = 512
     }
 }
+
+/** What a PC's beacon answer says. */
+internal class BeaconReply(val id: String, val name: String, val port: Int, val proto: Int)
 
 private val PROBE_MAGIC = "MIKEY?1".toByteArray()
 private val REPLY_MAGIC = "MIKEY!1".toByteArray()
@@ -93,14 +111,31 @@ internal fun probePayload(deviceId: String, deviceName: String): ByteArray {
 }
 
 /** `"MIKEY!1" | pc_id (16) | tcp_port (u16 BE) | proto_ver (u8) | name_len (1) | name`, or null if it isn't one. */
-internal fun parseReply(data: ByteArray, length: Int, from: InetAddress): DiscoveredPc? {
+internal fun parseReply(data: ByteArray, length: Int): BeaconReply? {
     if (length < REPLY_FIXED || !data.copyOfRange(0, 7).contentEquals(REPLY_MAGIC)) return null
     val id = data.copyOfRange(7, 23).joinToString("") { "%02x".format(it) }
     val port = ((data[23].toInt() and 0xFF) shl 8) or (data[24].toInt() and 0xFF)
     val proto = data[25].toInt() and 0xFF
     val nameLength = data[26].toInt() and 0xFF
     if (length < REPLY_FIXED + nameLength) return null
-    return DiscoveredPc(id, String(data, REPLY_FIXED, nameLength), from, port, proto)
+    return BeaconReply(id, String(data, REPLY_FIXED, nameLength), port, proto)
+}
+
+/** USB tethering interfaces are named rndis*, usb* or ncm* (connection-levels.md). Everything else counts as Wi-Fi. */
+internal fun levelFor(interfaceName: String): Int =
+    if (interfaceName.startsWith("rndis") || interfaceName.startsWith("usb") || interfaceName.startsWith("ncm")) 2 else 4
+
+/** Whether [ip] is inside [network]/[prefixLength]. */
+internal fun inSubnet(ip: ByteArray, network: ByteArray, prefixLength: Int): Boolean {
+    if (ip.size != network.size) return false
+    var bits = prefixLength
+    for (i in ip.indices) {
+        if (bits <= 0) return true
+        val mask = if (bits >= 8) 0xFF else (0xFF shl (8 - bits)) and 0xFF
+        if ((ip[i].toInt() and mask) != (network[i].toInt() and mask)) return false
+        bits -= 8
+    }
+    return true
 }
 
 /** The 32-hex device id as its 16 raw bytes. */

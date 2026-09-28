@@ -39,6 +39,10 @@ class Settings(context: Context) {
         lastPcAddress = null
     }
 
+    /** Connection levels the user allows: 1 USB debugging, 2 USB tethering, 3 Bluetooth, 4 Wi-Fi. All by default. */
+    val enabledLevels: Set<Int>
+        get() = prefs.getStringSet(KEY_LEVELS, null)?.mapNotNull { it.toIntOrNull() }?.toSet() ?: setOf(1, 2, 3, 4)
+
     /** Send raw PCM on Wi-Fi instead of Opus. Off by default: Opus is transparent and copes better with busy Wi-Fi. */
     var losslessWifi: Boolean
         get() = prefs.getBoolean(KEY_WIFI_LOSSLESS, false)
@@ -56,6 +60,7 @@ class Settings(context: Context) {
         const val KEY_PC_TOKEN = "pc.token"
         const val KEY_PC_LAST_IP = "pc.lastIp"
         const val KEY_WIFI_LOSSLESS = "audio.wifiLossless"
+        const val KEY_LEVELS = "levels.enabled"
         const val KEY_MANUAL_PC_ADDRESS = "pc.manualAddress"
     }
 }

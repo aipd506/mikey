@@ -31,16 +31,16 @@ PC
 Android
 - [ ] Full UI per [phone-ux.md](phone-ux.md) (split halves, chevron + drawer, status dot 3 colors, rotation behavior)
 - [ ] Settings persistence per [phone-ux.md](phone-ux.md)
-- [ ] `TransportManager` with all four transports, event-driven probing ([connection-levels.md](../architecture/connection-levels.md)), make-before-break handover ([connection-levels.md](../architecture/connection-levels.md))
+- [x] `TransportManager` for USB debugging, USB tethering and Wi‑Fi: event-driven probing, make-before-break upgrade, 10 s hysteresis ([connection-levels.md](../architecture/connection-levels.md))
 - [x] UDP discovery beacon; last-IP fast path
-- [ ] Interface-pinned sockets (`Network.bindSocket`)
+- [x] Interface-pinned sockets (`Network.bindSocket`)
 - [x] Opus on Wi‑Fi (96 kbps / 10 ms, low-delay mode; raw PCM if lossless is on)
 - [ ] Opus on Bluetooth (32 to 48 kbps / 20 ms, VOIP mode with in-band FEC)
 - [ ] AAudio low-latency capture
 - [ ] Bluetooth transport (bonded computers only, cached MAC)
 - [ ] Notification: live state text, soft mute/unmute, Stop
 - [x] Pairing token storage; PENDING/REJECT handling; "Forget"
-- [ ] USB-connected-but-no-link tethering hint
+- [x] USB-connected-but-no-link tethering hint (in the state; the UI shows it later)
 
 PC
 - [x] Tray icon + autostart at login
