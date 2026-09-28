@@ -33,6 +33,7 @@ impl SessionManager {
                 active_session: None,
                 pending_requests: std::collections::HashMap::new(),
                 pending_controls: Vec::new(),
+                phone_muted: false,
             })),
             condvar: Arc::new(Condvar::new()),
             next_request_id: Arc::new(AtomicU64::new(1)),
@@ -61,6 +62,25 @@ impl SessionManager {
     pub fn current_level(&self) -> Option<u8> {
         let inner = self.inner.lock().unwrap();
         inner.active_session.as_ref().map(|s| s.current_level)
+    }
+
+    /// False once this phone's session is gone: the PC's user disconnected it, or another
+    /// phone took over. Its connection then tells it to stop and ends.
+    pub fn is_active_device(&self, device_id: &str) -> bool {
+        let inner = self.inner.lock().unwrap();
+        inner
+            .active_session
+            .as_ref()
+            .is_some_and(|s| s.device_id == device_id)
+    }
+
+    /// The phone's soft mute, as it last told us or as the flyout set it.
+    pub fn set_phone_muted(&self, muted: bool) {
+        self.inner.lock().unwrap().phone_muted = muted;
+    }
+
+    pub fn is_phone_muted(&self) -> bool {
+        self.inner.lock().unwrap().phone_muted
     }
 
     pub fn handle_hello(&self, hello: &HelloPayload) -> HandshakeOutcome {
@@ -124,6 +144,7 @@ impl SessionManager {
     pub fn close_session(&self, _reason: &str) {
         let mut inner = self.inner.lock().unwrap();
         inner.active_session = None;
+        inner.phone_muted = false;
     }
 
     pub fn forget_device(&self, device_id: &str) -> bool {

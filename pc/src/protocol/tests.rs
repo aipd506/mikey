@@ -84,7 +84,7 @@ fn test_control_payload_roundtrip() {
             ns: Some(true),
             ns_strength: Some(0.85),
             aec: Some(true),
-            gate_db: Some(-45.0),
+            gate_db: Some(Some(-45.0)),
             muted: Some(false),
         }),
         video: Some(ControlVideoPayload {
@@ -98,4 +98,17 @@ fn test_control_payload_roundtrip() {
     let json = serde_json::to_string(&ctrl).unwrap();
     let parsed: ControlPayload = serde_json::from_str(&json).unwrap();
     assert_eq!(parsed, ctrl);
+}
+
+#[test]
+fn test_gate_off_is_an_explicit_null() {
+    let off = ControlAudioPayload {
+        gate_db: Some(None),
+        ..Default::default()
+    };
+    assert_eq!(serde_json::to_string(&off).unwrap(), r#"{"gate_db":null}"#);
+    let parsed: ControlAudioPayload = serde_json::from_str(r#"{"gate_db":null}"#).unwrap();
+    assert_eq!(parsed.gate_db, Some(None));
+    let untouched: ControlAudioPayload = serde_json::from_str("{}").unwrap();
+    assert_eq!(untouched.gate_db, None);
 }

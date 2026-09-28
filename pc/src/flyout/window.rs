@@ -98,6 +98,18 @@ impl FlyoutWindow {
         }
     }
 
+    /// Shows what the PC actually applies, so changes made on the phone appear here too.
+    pub(crate) fn sync_settings(&mut self) {
+        if !self.is_dragging_ns {
+            let ns_on = self.jitter_buffer.is_ns_enabled();
+            let strength = self.jitter_buffer.get_ns_strength() as f32 / 100.0;
+            self.ns_strength = if ns_on { strength } else { 0.0 };
+        }
+        self.aec_enabled = self.jitter_buffer.is_aec_enabled();
+        self.dsp_gate_enabled = self.jitter_buffer.gate_db().is_some();
+        self.is_muted = self.session_manager.is_phone_muted();
+    }
+
     pub fn hide(&mut self) {
         unsafe {
             win32::ShowWindow(self.hwnd, win32::SW_HIDE);

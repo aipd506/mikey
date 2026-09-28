@@ -18,6 +18,7 @@ use std::ffi::c_void;
 
 impl FlyoutWindow {
     pub(crate) fn on_paint(&mut self) {
+        self.sync_settings();
         let mut ps = win32::PAINTSTRUCT::default();
         let hdc = unsafe { win32::BeginPaint(self.hwnd, &mut ps) };
         if hdc == 0 {

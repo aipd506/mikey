@@ -9,6 +9,7 @@ use crate::protocol::{
     MEDIA_HEADER_LEN,
 };
 use crate::session::SessionManager;
+use crate::transport::control::{self, Ending};
 use crate::video::VideoPipeline;
 use std::net::{TcpListener, TcpStream};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -39,6 +40,7 @@ pub fn handle_client(
 
     let mut opus_decoder = OpusDecoderWrapper::new().ok();
     let mut sample_buf = Vec::with_capacity(960);
+    let mut ending = Ending::Dropped;
 
     while let Ok(frame) = read_frame(&mut stream) {
         session_manager.record_frame_received();
@@ -103,30 +105,28 @@ pub fn handle_client(
                     &Frame::new(FrameType::Heartbeat, frame.payload),
                 );
             }
-            FrameType::Control => {
-                if let Ok(ctrl) =
-                    serde_json::from_slice::<crate::protocol::ControlPayload>(&frame.payload)
-                {
-                    if let Some(ref audio) = ctrl.audio {
-                        if let Some(aec) = audio.aec {
-                            jitter_buffer.set_aec_enabled(aec);
-                        }
-                        if let Some(strength) = audio.ns_strength {
-                            jitter_buffer.set_ns_strength((strength * 100.0) as u32);
-                        }
-                    }
-                    if let Some(ref video) = ctrl.video {
-                        if let Some(on) = video.on {
-                            video_pipeline.set_camera_active(on);
-                        }
-                    }
-                }
-            }
+            FrameType::Control => control::apply_phone_control(
+                &frame.payload,
+                &jitter_buffer,
+                Some(&video_pipeline),
+                &session_manager,
+            ),
             FrameType::Bye => {
-                println!("[disconnect] Phone sent BYE frame");
+                ending = control::ending_for_bye(&frame.payload);
+                println!("[disconnect] Phone sent BYE ({:?})", ending);
                 break;
             }
             _ => {}
+        }
+
+        if !session_manager.is_active_device(&hello.device_id) {
+            let _ = write_frame(&mut stream, &control::disconnect_frame());
+            println!(
+                "[disconnect] Session ended on the PC: told {} to stop",
+                hello.device_name
+            );
+            ending = Ending::Disconnected;
+            break;
         }
 
         for ctrl in session_manager.take_pending_controls() {
@@ -136,7 +136,7 @@ pub fn handle_client(
         }
     }
 
-    session_manager.notify_transport_dropped();
+    control::finish_session(&session_manager, &ending);
     println!("[dropped] TCP connection ended for {}", hello.device_name);
 }
 

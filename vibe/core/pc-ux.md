@@ -63,7 +63,8 @@ The Mikey Flyout is an ultra-compact, minimal companion dialog (~300 px wide, dy
 #### D. Audio DSP Quick-Toggles & Bidirectional Sync
 - **Always-On Echo Cancellation (`AEC`):** Acoustic Echo Cancellation with WASAPI loopback reference matching and non-linear residual suppression is **always enabled by default** in the audio DSP engine. Because it permanently prevents speaker sound from looping back to remote meeting participants, no manual toggle button is shown in the UI, eliminating clutter.
 - **Noise Suppression (`RNNoise`):** Compact slider adjusting software suppression strength (0–100%).
-- **Noise Gate:** Compact pill toggle (`[ Gate ]`) suppressing background room hiss.
+- **Noise Gate:** Compact pill toggle (`[ Gate ]`) suppressing background room hiss. On sets a -45 dB threshold, off sends `gate_db: null`. Off by default, like on the phone.
+- **Disconnect** (footer and per device): ends the session. The PC sends BYE `disconnect` and the phone stops its mic and camera ([wire-protocol.md](../architecture/wire-protocol.md)).
 - **Bidirectional Settings Sync:** All audio DSP and video settings are shared common settings synchronized via `0x04 CONTROL` frames — changing them on the PC updates the phone, and changing them in the phone drawer updates the PC flyout.
 
 

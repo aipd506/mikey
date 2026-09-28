@@ -25,7 +25,7 @@ Receivers **reject any length > 4 MiB** and close the connection (protects again
 | `0x02` | VIDEO | phone → PC | media header + one JPEG image |
 | `0x03` | HEARTBEAT | both | 8-byte send timestamp (µs) — echoed by PC for RTT |
 | `0x04` | CONTROL | both | JSON: bidirectional common settings sync (audio: ns, ns_strength, aec, gate_db, muted; video: on, lens, preview, aspect, fps) |
-| `0x05` | BYE | both | JSON: `reason` — clean shutdown, no timeout wait |
+| `0x05` | BYE | both | JSON: `reason`. A clean goodbye, so the other side doesn't wait for a timeout (see [Ending a session](#ending-a-session)) |
 
 ### JSON field formats
 
@@ -112,6 +112,18 @@ Reject rule (phone): after `denied`, `version` or an unknown reason the phone st
 - Exception: after `PENDING` the PC sends nothing while it asks its user (up to 60 s). The phone waits up to 65 s for `WELCOME` or `REJECT` before giving up.
 - Socket errors (e.g. cable pulled) trigger this immediately, without waiting.
 - Reconnect backoff: 0.5 s → 1 s → 2 s → 4 s → 5 s cap; resets on success.
+
+## Ending a session
+
+The `reason` in BYE says what happens next:
+
+| From | `reason` | Meaning |
+|---|---|---|
+| Phone | `stop` | Its user stopped. The PC ends the session at once. |
+| Phone | `switch` | It moved to a better link, which already carries the session. The PC keeps the session. |
+| PC | `disconnect` | Its user ended the session, or another phone took over. The phone stops its mic and camera and doesn't reconnect until it's turned on again. |
+
+Any other reason, or a link that simply drops, counts as a drop: the PC holds the session for 30 s and the phone reconnects.
 
 ## Future: UDP media on Wi‑Fi (Phase 5, optional)
 

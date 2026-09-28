@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HelloPayload {
@@ -42,8 +42,13 @@ pub struct ControlAudioPayload {
     pub ns_strength: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub aec: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub gate_db: Option<f32>,
+    /// Absent: no change. `null`: gate off. A number: the threshold in dB (wire-protocol.md).
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    pub gate_db: Option<Option<f32>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub muted: Option<bool>,
 }
@@ -68,4 +73,9 @@ pub struct ControlPayload {
     pub audio: Option<ControlAudioPayload>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub video: Option<ControlVideoPayload>,
+}
+
+/// Keeps an explicit `null` apart from a missing field, which a plain `Option` can't.
+fn present<'de, D: Deserializer<'de>>(d: D) -> Result<Option<Option<f32>>, D::Error> {
+    Option::<f32>::deserialize(d).map(Some)
 }

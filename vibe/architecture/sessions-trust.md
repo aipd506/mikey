@@ -10,6 +10,7 @@
 
 - A session = one phone streaming to the PC. It survives transport changes ([connection-levels.md](connection-levels.md)) via a `session_token`.
 - **One active session** per PC. Other known devices are listed in the tray flyout; switching is explicit.
+- **Ending:** a phone that says BYE `stop` ends its session at once, while a dropped link keeps it for 30 s so the phone can come back on any level. When the PC's user disconnects the phone, or switches to another one, the PC sends BYE `disconnect` and the phone stops ([wire-protocol.md](wire-protocol.md)).
 
 ## Trust rules
 
