@@ -1,63 +1,12 @@
+//! Thread-safe Virtual Camera manager for Mikey.
+
+pub mod api;
+#[cfg(windows)]
+pub mod install;
+
+use api::SoftcamApi;
 use std::ffi::c_void;
 use std::sync::Mutex;
-
-type FnCreateCamera = unsafe extern "C" fn(width: i32, height: i32, framerate: f32) -> *mut c_void;
-type FnSendFrame = unsafe extern "C" fn(camera: *mut c_void, frame: *const u8);
-type FnDeleteCamera = unsafe extern "C" fn(camera: *mut c_void);
-
-struct SoftcamApi {
-    _dll: usize, // HMODULE
-    create_camera: FnCreateCamera,
-    send_frame: FnSendFrame,
-    delete_camera: FnDeleteCamera,
-}
-
-#[cfg(windows)]
-impl SoftcamApi {
-    fn load() -> Option<Self> {
-        #[link(name = "kernel32")]
-        extern "system" {
-            fn LoadLibraryW(lpLibFileName: *const u16) -> usize;
-            fn GetProcAddress(hModule: usize, lpProcName: *const std::ffi::c_char)
-                -> *const c_void;
-            fn FreeLibrary(hModule: usize) -> i32;
-        }
-
-        let dll_name: Vec<u16> = "softcam.dll"
-            .encode_utf16()
-            .chain(std::iter::once(0))
-            .collect();
-        let h_module = unsafe { LoadLibraryW(dll_name.as_ptr()) };
-        if h_module == 0 {
-            return None;
-        }
-
-        unsafe {
-            let p_create = GetProcAddress(h_module, c"scCreateCamera".as_ptr());
-            let p_send = GetProcAddress(h_module, c"scSendFrame".as_ptr());
-            let p_delete = GetProcAddress(h_module, c"scDeleteCamera".as_ptr());
-
-            if p_create.is_null() || p_send.is_null() || p_delete.is_null() {
-                FreeLibrary(h_module);
-                return None;
-            }
-
-            Some(Self {
-                _dll: h_module,
-                create_camera: std::mem::transmute::<*const c_void, FnCreateCamera>(p_create),
-                send_frame: std::mem::transmute::<*const c_void, FnSendFrame>(p_send),
-                delete_camera: std::mem::transmute::<*const c_void, FnDeleteCamera>(p_delete),
-            })
-        }
-    }
-}
-
-#[cfg(not(windows))]
-impl SoftcamApi {
-    fn load() -> Option<Self> {
-        None
-    }
-}
 
 /// Thread-safe Virtual Camera manager.
 pub struct VirtualCamera {
@@ -79,7 +28,9 @@ impl VirtualCamera {
         if api.is_some() {
             println!("[video] Virtual camera backend loaded (softcam.dll found)");
         } else {
-            println!("[video] Virtual camera not installed. Camera preview available; install softcam.dll to use with Zoom/Teams.");
+            println!(
+                "[video] Virtual camera not installed. Camera preview available; install softcam.dll to use with Zoom/Teams."
+            );
         }
 
         Self {

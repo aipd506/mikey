@@ -45,17 +45,20 @@ Pressed state: 0.08 white alpha overlay. Nothing else.
 ## 8.5 PC Tray Flyout Design Specifications
 
 - **Container:**
-  - Ultra-compact borderless floating dialog (~300 px width, ~215–330 px dynamic height).
-  - Background `#111111` (`surface`), outer border 1 px solid `#2C2C2E` (`divider`), 12 px corner radius.
+  - Ultra-compact borderless floating dialog (300 px width, 220–330 px dynamic height).
+  - Background `#111111` (`surface`), outer border 1 px solid `#2C2C2E` (`divider`), 16 px smooth corner radius.
+  - Full anti-aliasing via GDI+ (`SmoothingModeAntiAlias`), subpixel ClearType text rendering.
   - No drop shadows, no blur/glassmorphism, no OS title bar.
 - **Controls & Elements:**
-  - **Minimal Typography:** Crisp Segoe UI Variable fonts (12–15px), sentence case, zero unnecessary text labels. Icons carry meaning.
-  - **Live Audio VU Meter:** Horizontal bar (height 4 px) integrated directly under the microphone row, track `#2C2C2E`. Level bar renders `#30D158` (normal), `#FFD60A` (peak > -6 dB), `#FF453A` (clipping 0 dB). Instant attack, smooth decay.
-  - **Unified Toggle Pills:** Compact flat pills (height 24 px, 6 px corner radius). Active background `#30D158` (audio) or `#0A84FF` (video), inactive background `#1C1C1E` with `#2C2C2E` border.
-  - **Noise Suppression Slider:** Slim 4 px flat track (`#2C2C2E`), active fill `#30D158`, 10 px circular white thumb.
-  - **Persistent Camera Option:** Eye/preview icon button (`[ Preview ]`) always available to open/toggle floating camera preview window, even when camera is off/idle.
-  - **Lens Flip Control:** Visual `[ Flip ⟲ ]` button to trigger front/back camera switch remotely.
-  - **Embedded Camera Thumbnail:** 16:9 aspect box, `#000000` background, 1 px `#2C2C2E` border, 4 px corner radius.
+  - **Minimal Typography & Soft Iconography:** Crisp Segoe UI vector fonts (11–15px), sentence case, zero unnecessary text labels. Native vector Heroicons (1.8px rounded stroke, round line caps/joins).
+  - **Live Audio VU Meter:** Smooth horizontal pill (height 4 px) integrated directly into the microphone row, track `#1C1C1E`. Level bar renders `#30D158` (normal), `#FFD60A` (peak > -6 dB), `#FF453A` (clipping 0 dB). Instant attack, smooth decay.
+  - **Unified Smooth Pills:** Rounded pill buttons (height 26 px, 13 px radius). Active background `#30D158` (audio) or `#0A84FF` (video), inactive background `#1C1C1E` with `#2C2C2E` border.
+  - **Always-On AEC:** Echo cancellation runs permanently in the DSP background with WASAPI loopback reference. No UI toggle button is rendered, avoiding user confusion and saving horizontal space.
+  - **Smooth Noise Suppression Slider:** 6 px rounded track (`#1C1C1E`), active fill `#30D158`, 14 px circular anti-aliased thumb with inner ring.
+  - **Persistent Camera Option:** Visual preview pill button (`[ Preview ]`) always available to open/toggle floating camera preview window, even when camera is off/idle.
+  - **Lens Flip Control:** Visual `[ Flip ]` pill button to trigger front/back camera switch remotely.
+  - **Circular Action Buttons:** 28 px diameter round buttons in footer for logs, disconnect, and power.
+  - **Embedded Camera Thumbnail:** 16:9 aspect box, `#000000` background, 1 px `#2C2C2E` border, 8 px corner radius.
 - **Interaction Rules:**
   - Light dismiss: Closes on blur (`WM_KILLFOCUS`), `Esc` key, or tray icon re-click.
   - Hover state: 0.05 white alpha overlay (`#2C2C2E` highlight).

@@ -20,7 +20,7 @@
 ### Why a Flyout instead of a Native OS Context Menu?
 Standard Windows context menus (`muda`/Win32 popup menus) are rigid, visually dated, and limited strictly to plain text and checkmarks. They cannot host rich interactive controls: live audio VU meters, volume/gain sliders, embedded camera preview thumbnails, real-time connection telemetry, or inline action cards (e.g. join approvals and driver install prompts).
 
-The Mikey Flyout is an ultra-compact, minimal companion dialog (~300 px wide, dynamic height ~215–330 px) crafted with Mikey’s sleek dark design language (`#000000` / `#111111`, `#2C2C2E` dividers, `#FFFFFF` text, `#8E8E93` subtext). It prioritizes visual density, icons over verbose text, an integrated VU meter, and persistent camera preview controls. Common settings (noise suppression, echo cancellation, noise gate, mute, lens flip, preview) are bidirectional and kept in sync between Android and PC via `0x04 CONTROL` frames.
+The Mikey Flyout is an ultra-compact, minimal companion dialog (~300 px wide, dynamic height ~195–310 px) crafted with Mikey’s sleek dark design language (`#000000` / `#111111`, `#2C2C2E` dividers, `#FFFFFF` text, `#8E8E93` subtext). It prioritizes visual density, icons over verbose text, an integrated VU meter, and persistent camera preview controls. Common settings (noise suppression, echo cancellation, noise gate, mute, lens flip, preview) are bidirectional and kept in sync between Android and PC via `0x04 CONTROL` frames.
 
 ### Visual Layout & Components
 
@@ -28,17 +28,17 @@ The Mikey Flyout is an ultra-compact, minimal companion dialog (~300 px wide, dy
 ┌────────────────────────────────────────────────────────┐
 │  Mikey                  Pixel 7 Pro  [L1 USB]  ● Live  │ ← Header: device & status pill
 ├────────────────────────────────────────────────────────┤
-│  🎤 Microphone                              [ Mute ]   │ ← Mic row + mute toggle
-│  [██████████████████░░░░░░░░░░░░░] -12 dB              │ ← Integrated live VU meter
+│  🎙 Microphone                              [ Mute ]   │ ← Mic row + soft-mute pill
+│  [██████████████████░░░░░░░░░░░░░] -12 dB              │ ← Integrated live 4px VU meter
 ├────────────────────────────────────────────────────────┤
 │  📷 Camera                      [ Flip ⟲ ]  [ Preview ]│ ← Camera row: flip + preview
 │  ┌──────────────────────────────────────────────────┐  │
 │  │               [Live Video Preview]               │  │ ← 16:9 embedded preview (when live)
 │  └──────────────────────────────────────────────────┘  │
 ├────────────────────────────────────────────────────────┤
-│  DSP: 🔊 [───●─────] NS      [ AEC ✓ ]    [ Gate ]     │ ← Compact visual DSP toggles
+│  DSP:  [───●─────] NS 50%                 [ Gate ]     │ ← Minimal NS slider & Gate (AEC always on)
 ├────────────────────────────────────────────────────────┤
-│  Mikey v1.0.0                  [ 📁 ]   [ ⚡ ]   [ ⏻ ]  │ ← Footer: logs, disconnect, quit
+│  v1.0.0                         [ 📁 ]   [ ⚡ ]   [ ⏻ ]  │ ← Footer: logs, disconnect, quit
 └────────────────────────────────────────────────────────┘
 ```
 
@@ -50,20 +50,20 @@ The Mikey Flyout is an ultra-compact, minimal companion dialog (~300 px wide, dy
 - **Status Dot:** `#30D158` (green = live stream), `#FFD60A` (amber = waiting / handshake), `#3A3A3C` (dimmed grey = idle).
 
 #### B. Microphone & Audio Controls
-- **Streaming State:** Microphone glyph (`\u{E720}`) dynamically highlights in `#30D158` when active, `#FF453A` when muted, and `#3A3A3C` when idle.
-- **Mute Action:** Compact pill button (`[ Mute ]` / `[ Unmute ]` with `\u{E74F}`) controlling soft-mute, synchronized bidirectionally with the phone notification and UI.
+- **Streaming State:** Soft microphone glyph dynamically highlights in `#30D158` when active, `#FF453A` when muted, and `#3A3A3C` when idle.
+- **Mute Action:** Compact pill button (`[ Mute ]` / `[ Unmute ]`) controlling soft-mute, synchronized bidirectionally with the phone notification and UI.
 - **Integrated Live VU Meter:** Direct 4 px horizontal bar immediately under the mic label with instant attack and smooth decay (`#30D158` normal, `#FFD60A` peak, `#FF453A` clipping).
 
 #### C. Camera & Video Controls
 - **Persistent Camera Option:** Even when camera video is off/idle, a visual **`[ Preview ]`** button is always accessible to open/close the detached floating preview window (§ 7.5).
-- **Lens Flip Control:** Visual **`[ Flip ⟲ ]`** button (`\u{E72C}`) sends a `0x04 CONTROL` frame to flip the phone's front ↔ back lens seamlessly.
+- **Lens Flip Control:** Visual **`[ Flip ⟲ ]`** button sends a `0x04 CONTROL` frame to flip the phone's front ↔ back lens seamlessly.
 - **Embedded 16:9 Thumbnail:** When video streaming is active and the detached window is not popped out, the flyout expands dynamically from ~215 px to ~330 px to blit the live 16:9 video frame.
-- **Camera Indicator:** Camera glyph (`\u{E714}`) illuminates in vivid `#0A84FF` when streaming is active.
+- **Camera Indicator:** Soft camera glyph illuminates in vivid `#0A84FF` when streaming is active.
 
 #### D. Audio DSP Quick-Toggles & Bidirectional Sync
-- **Noise Suppression (`RNNoise`):** Compact slider/toggle adjusting software suppression strength.
-- **Echo Cancellation (`SpeexDSP AEC`):** Pill toggle (`[ AEC ✓ ]`) controlling loopback echo removal.
-- **Noise Gate:** Pill toggle (`[ Gate ]`) suppressing background room hiss.
+- **Always-On Echo Cancellation (`AEC`):** Acoustic Echo Cancellation with WASAPI loopback reference matching and non-linear residual suppression is **always enabled by default** in the audio DSP engine. Because it permanently prevents speaker sound from looping back to remote meeting participants, no manual toggle button is shown in the UI, eliminating clutter.
+- **Noise Suppression (`RNNoise`):** Compact slider adjusting software suppression strength (0–100%).
+- **Noise Gate:** Compact pill toggle (`[ Gate ]`) suppressing background room hiss.
 - **Bidirectional Settings Sync:** All audio DSP and video settings are shared common settings synchronized via `0x04 CONTROL` frames — changing them on the PC updates the phone, and changing them in the phone drawer updates the PC flyout.
 
 

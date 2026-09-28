@@ -8,36 +8,7 @@ use std::thread;
 use std::time::Duration;
 use tray_icon::{Icon, TrayIcon, TrayIconBuilder, TrayIconEvent};
 
-// Icon colors matching vibe/rules/design-language.md
-pub const COLOR_IDLE_GREY: (u8, u8, u8) = (142, 142, 147);
-pub const COLOR_STREAMING_GREEN: (u8, u8, u8) = (48, 209, 88);
-pub const COLOR_PENDING_AMBER: (u8, u8, u8) = (255, 214, 10);
-
-pub fn create_dot_icon(r: u8, g: u8, b: u8) -> Icon {
-    const SIZE: u32 = 16;
-    let mut rgba = Vec::with_capacity((SIZE * SIZE * 4) as usize);
-    let center = (SIZE as f32 - 1.0) / 2.0;
-    let radius = 6.0f32;
-
-    for y in 0..SIZE {
-        for x in 0..SIZE {
-            let dx = x as f32 - center;
-            let dy = y as f32 - center;
-            let dist = (dx * dx + dy * dy).sqrt();
-
-            if dist <= radius - 0.5 {
-                rgba.extend_from_slice(&[r, g, b, 255]);
-            } else if dist <= radius + 0.5 {
-                let alpha = ((radius + 0.5 - dist) * 255.0) as u8;
-                rgba.extend_from_slice(&[r, g, b, alpha]);
-            } else {
-                rgba.extend_from_slice(&[0, 0, 0, 0]);
-            }
-        }
-    }
-
-    Icon::from_rgba(rgba, SIZE, SIZE).expect("create RGBA icon")
-}
+use crate::flyout::icons::{create_mikey_tray_icon, TrayIconMode};
 
 pub struct TrayApp {
     tray: TrayIcon,
@@ -49,17 +20,9 @@ pub struct TrayApp {
 
 impl TrayApp {
     pub fn new(session_manager: SessionManager) -> Self {
-        let icon_grey = create_dot_icon(COLOR_IDLE_GREY.0, COLOR_IDLE_GREY.1, COLOR_IDLE_GREY.2);
-        let icon_green = create_dot_icon(
-            COLOR_STREAMING_GREEN.0,
-            COLOR_STREAMING_GREEN.1,
-            COLOR_STREAMING_GREEN.2,
-        );
-        let icon_amber = create_dot_icon(
-            COLOR_PENDING_AMBER.0,
-            COLOR_PENDING_AMBER.1,
-            COLOR_PENDING_AMBER.2,
-        );
+        let icon_grey = create_mikey_tray_icon(TrayIconMode::Idle);
+        let icon_green = create_mikey_tray_icon(TrayIconMode::Active);
+        let icon_amber = create_mikey_tray_icon(TrayIconMode::Pending);
 
         // No OS popup context menu: clicking tray icon directly toggles custom Mikey Flyout
         let tray = TrayIconBuilder::new()

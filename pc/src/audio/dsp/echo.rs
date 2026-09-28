@@ -1,142 +1,165 @@
 use nnnoiseless::DenoiseState;
 use std::collections::VecDeque;
 
-/// Maximum reference history held for cross-correlation delay matching (~300 ms at 48 kHz)
-const MAX_REF_SAMPLES: usize = 14_400;
-/// Minimum delay search bound (~5 ms at 48 kHz)
+/// Maximum reference history held (~400 ms at 48 kHz).
+const MAX_REF_SAMPLES: usize = 19_200;
+/// Minimum delay search bound (~5 ms at 48 kHz).
 const MIN_DELAY_SAMPLES: usize = 240;
-/// Maximum delay search bound (~140 ms at 48 kHz)
-const MAX_DELAY_SAMPLES: usize = 6_720;
+/// Maximum delay search bound (~250 ms at 48 kHz).
+const MAX_DELAY_SAMPLES: usize = 12_000;
 
 /// Acoustic Echo Canceller with PC Speaker Loopback Reference matching.
-/// Cancels system sounds / speaker audio bleeding into the phone microphone.
+/// Eliminates remote participant voice looping through PC speakers into phone mic.
 pub struct EchoSuppressor {
     ref_ring: VecDeque<f32>,
-    prev_frame: [f32; DenoiseState::FRAME_SIZE],
-    feedback_est: [f32; DenoiseState::FRAME_SIZE],
-    decay: f32,
+    last_delay: usize,
+    suppression_gain: f32,
 }
 
 impl EchoSuppressor {
     pub fn new() -> Self {
         Self {
             ref_ring: VecDeque::with_capacity(MAX_REF_SAMPLES),
-            prev_frame: [0.0; DenoiseState::FRAME_SIZE],
-            feedback_est: [0.0; DenoiseState::FRAME_SIZE],
-            decay: 0.85,
+            last_delay: 2_400,
+            suppression_gain: 1.0,
         }
     }
 
     /// Pushes reference audio samples captured from PC speaker output (WASAPI loopback).
+    /// Automatically detects and normalizes float amplitude [-1.0, 1.0] to PCM scale.
     pub fn push_reference(&mut self, samples: &[f32]) {
-        self.ref_ring.extend(samples.iter().copied());
+        let is_normalized = samples.iter().take(64).all(|&s| s.abs() <= 1.5);
+        let scale = if is_normalized { 32767.0 } else { 1.0 };
+        for &s in samples {
+            self.ref_ring.push_back(s * scale);
+        }
         if self.ref_ring.len() > MAX_REF_SAMPLES {
             let excess = self.ref_ring.len() - MAX_REF_SAMPLES;
             self.ref_ring.drain(0..excess);
         }
     }
 
-    /// Suppresses PC speaker loopback bleed and acoustic room reflections from microphone audio.
+    /// Suppresses PC speaker loopback bleed from microphone audio.
     pub fn process_chunk(&mut self, chunk: &mut [f32]) {
         let frame_size = DenoiseState::FRAME_SIZE;
-
-        // Step 1: System Sound Cancellation via Speaker Loopback Correlation
         let ref_len = self.ref_ring.len();
-        if ref_len >= MAX_DELAY_SAMPLES + frame_size {
-            let search_window_start = ref_len - (MAX_DELAY_SAMPLES + frame_size);
-            let search_window_end = ref_len;
-            let ref_energy: f32 = self
-                .ref_ring
-                .range(search_window_start..search_window_end)
-                .step_by(8)
-                .map(|&s| s * s)
-                .sum::<f32>()
-                / ((MAX_DELAY_SAMPLES + frame_size) / 8) as f32;
+        if ref_len < MAX_DELAY_SAMPLES + frame_size {
+            return;
+        }
 
-            if ref_energy > 1600.0 {
-                let mut best_corr = 0.0f32;
-                let mut best_delay = MIN_DELAY_SAMPLES;
+        let mic_energy: f32 = chunk.iter().map(|&s| s * s).sum::<f32>() / frame_size as f32;
 
-                let mut delay = MIN_DELAY_SAMPLES;
-                while delay <= MAX_DELAY_SAMPLES {
-                    let start_idx = ref_len - delay - frame_size;
-                    let mut corr = 0.0f32;
-                    let mut i = 0;
-                    while i < frame_size {
-                        corr += chunk[i] * self.ref_ring[start_idx + i];
-                        i += 4;
-                    }
-                    if corr > best_corr {
-                        best_corr = corr;
-                        best_delay = delay;
-                    }
-                    delay += 48;
-                }
+        let best_delay = self.find_best_delay(ref_len, frame_size, chunk);
+        self.last_delay = best_delay;
 
-                let fine_start = best_delay.saturating_sub(24).max(MIN_DELAY_SAMPLES);
-                let fine_end = (best_delay + 24).min(MAX_DELAY_SAMPLES);
-                let mut fine_delay = fine_start;
-                while fine_delay <= fine_end {
-                    let start_idx = ref_len - fine_delay - frame_size;
-                    let mut corr = 0.0f32;
-                    let mut i = 0;
-                    while i < frame_size {
-                        corr += chunk[i] * self.ref_ring[start_idx + i];
-                        i += 2;
-                    }
-                    if corr > best_corr {
-                        best_corr = corr;
-                        best_delay = fine_delay;
-                    }
-                    fine_delay += 2;
-                }
+        let start_idx = ref_len - best_delay - frame_size;
+        let mut ref_energy = 0.0f32;
+        let mut dot_prod = 0.0f32;
+        for (i, &mic) in chunk.iter().enumerate() {
+            let r = self.ref_ring[start_idx + i];
+            ref_energy += r * r;
+            dot_prod += mic * r;
+        }
+        ref_energy /= frame_size as f32;
+        dot_prod /= frame_size as f32;
 
-                let start_idx = ref_len - best_delay - frame_size;
-                let mut ref_frame_energy = 0.0f32;
-                for i in 0..frame_size {
-                    let r = self.ref_ring[start_idx + i];
-                    ref_frame_energy += r * r;
-                }
+        if ref_energy > 400.0 {
+            let norm_corr = (dot_prod / ((mic_energy * ref_energy).sqrt() + 1.0)).clamp(-1.0, 1.0);
+            let alpha = (dot_prod / (ref_energy + 1.0)).clamp(0.0, 2.0);
 
-                if ref_frame_energy > 1000.0 && best_corr > 0.0 {
-                    let alpha = (best_corr * 2.0 / (ref_frame_energy + 1000.0)).clamp(0.0, 1.8);
-                    if alpha > 0.05 {
-                        for (item, &r) in chunk
-                            .iter_mut()
-                            .zip(self.ref_ring.range(start_idx..start_idx + frame_size))
-                        {
-                            let echo = r * alpha;
-                            *item -= echo;
-                        }
-
-                        let norm_corr = best_corr / ((ref_frame_energy + 1.0).sqrt() * 1000.0);
-                        if norm_corr > 0.3 {
-                            let suppression = (1.0 - (norm_corr * 0.4)).clamp(0.4, 1.0);
-                            for item in chunk.iter_mut() {
-                                *item *= suppression;
-                            }
-                        }
-                    }
+            if norm_corr > 0.15 && alpha > 0.02 {
+                for (item, &r) in chunk
+                    .iter_mut()
+                    .zip(self.ref_ring.range(start_idx..start_idx + frame_size))
+                {
+                    *item -= r * alpha;
                 }
             }
+
+            let post_energy: f32 = chunk.iter().map(|&s| s * s).sum::<f32>() / frame_size as f32;
+            let is_far_end_active = ref_energy > 800.0;
+            let is_near_end_talking = post_energy > ref_energy * 0.8 && norm_corr < 0.3;
+
+            let target_gain = if norm_corr > 0.45 || (is_far_end_active && !is_near_end_talking) {
+                0.03
+            } else if norm_corr > 0.25 {
+                0.35
+            } else {
+                1.0
+            };
+
+            let alpha_step = if target_gain < self.suppression_gain {
+                0.4
+            } else {
+                0.15
+            };
+            self.suppression_gain += (target_gain - self.suppression_gain) * alpha_step;
+        } else {
+            self.suppression_gain += (1.0 - self.suppression_gain) * 0.25;
         }
 
-        // Step 2: Room Acoustic Reflection & Feedback Suppression
-        for (i, item) in chunk.iter_mut().enumerate() {
-            let sample = *item;
-            let estimated_echo = self.prev_frame[i] * 0.3 + self.feedback_est[i] * 0.2;
-            self.feedback_est[i] = estimated_echo * self.decay;
-            self.prev_frame[i] = sample;
-
-            let suppressed = sample - estimated_echo;
-            *item = suppressed.clamp(-32768.0, 32767.0);
+        if self.suppression_gain < 0.99 {
+            for item in chunk.iter_mut() {
+                *item = (*item * self.suppression_gain).clamp(-32768.0, 32767.0);
+            }
         }
+    }
+
+    fn find_best_delay(&self, ref_len: usize, frame_size: usize, chunk: &[f32]) -> usize {
+        let (search_start, search_end, step) = if self.last_delay >= 480 {
+            (
+                self.last_delay.saturating_sub(480).max(MIN_DELAY_SAMPLES),
+                (self.last_delay + 480).min(MAX_DELAY_SAMPLES),
+                16,
+            )
+        } else {
+            (MIN_DELAY_SAMPLES, MAX_DELAY_SAMPLES, 48)
+        };
+
+        let mut best_corr = -1.0f32;
+        let mut best_delay = self.last_delay;
+
+        let mut delay = search_start;
+        while delay <= search_end {
+            let start = ref_len - delay - frame_size;
+            let mut corr = 0.0f32;
+            let mut i = 0;
+            while i < frame_size {
+                corr += chunk[i] * self.ref_ring[start + i];
+                i += 4;
+            }
+            if corr > best_corr {
+                best_corr = corr;
+                best_delay = delay;
+            }
+            delay += step;
+        }
+
+        let fine_start = best_delay.saturating_sub(step).max(MIN_DELAY_SAMPLES);
+        let fine_end = (best_delay + step).min(MAX_DELAY_SAMPLES);
+        let mut fine = fine_start;
+        while fine <= fine_end {
+            let start = ref_len - fine - frame_size;
+            let mut corr = 0.0f32;
+            let mut i = 0;
+            while i < frame_size {
+                corr += chunk[i] * self.ref_ring[start + i];
+                i += 2;
+            }
+            if corr > best_corr {
+                best_corr = corr;
+                best_delay = fine;
+            }
+            fine += 2;
+        }
+
+        best_delay
     }
 
     pub fn reset(&mut self) {
         self.ref_ring.clear();
-        self.prev_frame.fill(0.0);
-        self.feedback_est.fill(0.0);
+        self.last_delay = 2_400;
+        self.suppression_gain = 1.0;
     }
 }
 

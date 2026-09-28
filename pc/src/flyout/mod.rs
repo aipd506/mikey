@@ -4,9 +4,12 @@
 //! matching the reference visual design system with double-buffered GDI rendering.
 
 #![cfg(windows)]
+#![allow(clippy::not_unsafe_ptr_arg_deref)]
 
 pub mod blit;
 pub mod gdi;
+pub mod icons;
+pub use icons as heroicons;
 pub mod input;
 pub mod layout;
 pub mod palette;

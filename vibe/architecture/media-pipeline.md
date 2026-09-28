@@ -30,9 +30,10 @@ frames → [Opus decode] → jitter buffer ──► drift resampler ──► A
 
 **Echo cancellation (PC):**
 - Reference = what the PC is playing: WASAPI loopback of the chosen output device (Windows) / the output's monitor source (Linux).
-- Engine: **SpeexDSP** `speex_echo` (small, BSD). If quality testing shows it's not good enough under Wi‑Fi jitter, evaluate WebRTC's AEC3 (better delay handling, but a larger C++ build) behind the same `aec.rs` interface.
+- Engine: Adaptive cross-correlation delay tracking (0–250 ms acoustic + network window) with matched float amplitude scaling, delay-aligned subtraction, and non-linear residual echo suppression (ducking far-end bleed during single-talk). Always enabled by default in the DSP engine so meeting participants never hear their own voice looping back.
+- If quality testing shows it's not good enough under severe Wi‑Fi jitter, evaluate WebRTC's AEC3 behind the same interface.
 - Works best on USB levels (stable delay). On Wi‑Fi, the jitter buffer's delay is fed to the AEC as its delay hint.
-- If the user wears headphones, AEC is unnecessary; it is harmless but costs CPU — a later improvement can auto-bypass when no echo is detected.
+- Permanently active by default; no user toggle needed in the UI. If the user wears headphones, the loopback detector detects no acoustic correlation and leaves the signal untouched.
 
 ## 13.2 Video
 

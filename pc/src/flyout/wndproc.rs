@@ -21,16 +21,34 @@ pub(crate) unsafe extern "system" fn flyout_wndproc(
             }
             win32::WM_TIMER => {
                 if flyout.visible {
+                    let fg = unsafe { win32::GetForegroundWindow() };
+                    if !flyout.is_dragging_ns {
+                        if let Some(shown) = flyout.shown_at {
+                            if shown.elapsed().as_millis() > 200 && fg != hwnd {
+                                flyout.hide();
+                                return 0;
+                            }
+                        }
+                    }
                     win32::InvalidateRect(hwnd, std::ptr::null(), 0);
                 }
                 return 0;
             }
             win32::WM_ACTIVATE => {
                 let state = wparam & 0xFFFF;
-                if state == win32::WA_INACTIVE {
-                    // 350 ms grace period: ignores transient focus transfers during open
+                if state == win32::WA_INACTIVE && !flyout.is_dragging_ns {
                     if let Some(shown) = flyout.shown_at {
-                        if shown.elapsed().as_millis() > 350 {
+                        if shown.elapsed().as_millis() > 150 {
+                            flyout.hide();
+                            return 0;
+                        }
+                    }
+                }
+            }
+            win32::WM_KILLFOCUS => {
+                if !flyout.is_dragging_ns {
+                    if let Some(shown) = flyout.shown_at {
+                        if shown.elapsed().as_millis() > 150 {
                             flyout.hide();
                             return 0;
                         }
