@@ -99,5 +99,5 @@ class MainActivity : ComponentActivity() {
 private fun micPermissions(settings: Settings): List<String> = buildList {
     add(Manifest.permission.RECORD_AUDIO)
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) add(Manifest.permission.POST_NOTIFICATIONS)
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && 3 in settings.enabledLevels) add(Manifest.permission.BLUETOOTH_CONNECT)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && 4 in settings.enabledLevels) add(Manifest.permission.BLUETOOTH_CONNECT)
 }

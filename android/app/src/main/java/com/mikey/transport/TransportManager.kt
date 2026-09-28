@@ -163,12 +163,12 @@ class TransportManager(
         if (usable(2) && interfaces.any { it.level == 2 }) {
             for (pc in found.filter { it.level == 2 }) yield(TcpTransport.discovered(pc, networkFor(pc.via)))
         }
-        if (usable(4)) {
+        if (usable(3)) {
             settings.manualPcAddress?.let { yield(TcpTransport.manual(it, networkFor(interfaces, it))) }
             settings.lastPcAddress?.let { yield(TcpTransport.lastKnown(it, networkFor(interfaces, it))) }
-            for (pc in found.filter { it.level == 4 }) yield(TcpTransport.discovered(pc, networkFor(pc.via)))
+            for (pc in found.filter { it.level == 3 }) yield(TcpTransport.discovered(pc, networkFor(pc.via)))
         }
-        if (usable(3)) yieldAll(BluetoothTransport.candidates(context, settings.pcBtAddress))
+        if (usable(4)) yieldAll(BluetoothTransport.candidates(context, settings.pcBtAddress))
     }
 
     private fun networkFor(via: NetInterface?): Network? =
@@ -227,14 +227,8 @@ class TransportManager(
 }
 
 /**
- * Where a level stands in the order of preference, 0 being best: USB debugging, USB tethering,
- * Wi-Fi, then Bluetooth. Bluetooth comes last because it carries narrower audio and no video.
- * Anything else (like 0 for "no level") ranks below them all.
+ * Where a level stands in the order of preference, 0 being best. The levels are numbered in that
+ * order: USB debugging, USB tethering, Wi-Fi, then Bluetooth, which comes last because it carries
+ * narrower audio and no video. Anything else (like 0 for "no level") ranks below them all.
  */
-internal fun rank(level: Int): Int = when (level) {
-    1 -> 0
-    2 -> 1
-    4 -> 2
-    3 -> 3
-    else -> 4
-}
+internal fun rank(level: Int): Int = if (level in 1..4) level - 1 else 4

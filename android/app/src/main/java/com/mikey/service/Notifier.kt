@@ -66,7 +66,7 @@ class Notifier(private val service: Service) {
         Link.Waiting -> R.string.notification_link_waiting
         is Link.Live -> when (link.level) {
             1, 2 -> R.string.notification_link_usb
-            3 -> R.string.notification_link_bluetooth
+            4 -> R.string.notification_link_bluetooth
             else -> R.string.notification_link_wifi
         }
         is Link.Refused -> when (link.reason) {

@@ -10,8 +10,8 @@ class TransportManagerTest {
 
     @Test
     fun usbFirstThenWifiAndBluetoothLast() {
-        assertEquals(listOf(1, 2, 4, 3), listOf(1, 2, 3, 4).sortedBy(::rank))
-        assertTrue("no level ranks below every level", rank(0) > rank(3))
+        assertEquals(listOf(1, 2, 3, 4), listOf(4, 3, 2, 1).sortedBy(::rank))
+        assertTrue("no level ranks below every level", rank(0) > rank(4))
     }
 
     @Test
