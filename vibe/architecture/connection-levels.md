@@ -37,7 +37,7 @@ The phone's order of preference is 1, 2, 4, then 3: Bluetooth is the last resort
 - Send a UDP discovery probe to that interface's broadcast address ([connection-levels.md](connection-levels.md)). The PC answers with its IP and port.
 - Connect TCP, bound to that interface's local address so traffic can't leak onto Wi‑Fi.
 
-**Friendly nudge:** if the phone sees it is USB-connected to a computer (`ACTION_POWER_CONNECTED` with `BATTERY_PLUGGED_USB`) but neither Level 1 nor Level 2 is available after 3 s, the drawer shows a one-line hint *"Turn on USB tethering for a wired connection ›"* that opens the tethering settings page. Shown at most once per plug-in.
+**Friendly nudge:** if the phone sees it is USB-connected to a computer (the sticky `USB_STATE` broadcast says `connected`; not the charger type, which many laptop ports report as a wall charger) but neither Level 1 nor Level 2 is available after 3 s, the drawer shows a one-line hint *"Turn on USB tethering for a wired connection ›"* that opens the tethering settings page. Shown at most once per plug-in.
 
 **Caveats to document:**
 - Android can't programmatically enable tethering; the user toggles it.
@@ -77,7 +77,7 @@ The phone does **not** poll everything constantly. Probing is triggered by:
 | Trigger | Probes |
 |---|---|
 | App/service start | All enabled levels, in priority order, in parallel with a short stagger |
-| USB power connected | L1 immediately, again at +1 s, +3 s (ADB reverse takes a moment); L2 on interface change |
+| USB cable to a computer plugged in, or its USB mode changes (`USB_STATE`) | L1 immediately, again at +1 s, +3 s (ADB reverse takes a moment); L2 on interface change |
 | Network interface added/removed (`ConnectivityManager.NetworkCallback` + interface enumeration) | L2, L4 |
 | Bluetooth adapter on / bond change | L3 |
 | Current transport dropped | All levels below and above it |

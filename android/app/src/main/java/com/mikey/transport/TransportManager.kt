@@ -11,7 +11,6 @@ import android.net.LinkProperties
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
-import android.os.BatteryManager
 import android.os.SystemClock
 import android.util.Log
 import com.mikey.settings.Settings
@@ -65,11 +64,11 @@ class TransportManager(
         }
     }
 
-    /** Power and Bluetooth events. Any of them is a reason to look again. */
+    /** USB and Bluetooth events. Any of them is a reason to look again. */
     private val eventReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
-                Intent.ACTION_POWER_CONNECTED, Intent.ACTION_POWER_DISCONNECTED -> readUsbPower()
+                ACTION_USB_STATE -> readUsbState(intent)
                 else -> wake()
             }
         }
@@ -79,13 +78,12 @@ class TransportManager(
         val request = NetworkRequest.Builder().removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET).build()
         context.getSystemService(ConnectivityManager::class.java)?.registerNetworkCallback(request, networkCallback)
         val events = IntentFilter().apply {
-            addAction(Intent.ACTION_POWER_CONNECTED)
-            addAction(Intent.ACTION_POWER_DISCONNECTED)
+            addAction(ACTION_USB_STATE)
             addAction(BluetoothAdapter.ACTION_STATE_CHANGED)
             addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
         }
-        context.registerReceiver(eventReceiver, events)
-        readUsbPower()
+        // USB_STATE is sticky, so registering hands us where the cable stands right now.
+        readUsbState(context.registerReceiver(eventReceiver, events))
     }
 
     fun stop() {
@@ -186,9 +184,12 @@ class TransportManager(
         return networkFor(interfaces.firstOrNull { it.contains(ip) })
     }
 
-    private fun readUsbPower() {
-        val battery = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        val usb = battery?.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) == BatteryManager.BATTERY_PLUGGED_USB
+    /**
+     * Whether a USB cable to a computer is in, from USB_STATE. Not from the charger type: many
+     * laptop ports (USB-C, charging ports) make the battery report a wall charger.
+     */
+    private fun readUsbState(intent: Intent?) {
+        val usb = intent?.getBooleanExtra(USB_CONNECTED, false) == true
         synchronized(lock) {
             if (usb && usbPluggedAtMs == 0L) usbPluggedAtMs = SystemClock.elapsedRealtime()
             if (!usb) usbPluggedAtMs = 0L
@@ -208,6 +209,13 @@ class TransportManager(
 
     private companion object {
         const val TAG = "TransportManager"
+
+        /**
+         * Sent on plug, unplug and USB mode changes (debugging, tethering). Hidden in UsbManager,
+         * but every Android version sends it and the system's own USB settings rely on it.
+         */
+        const val ACTION_USB_STATE = "android.hardware.usb.action.USB_STATE"
+        const val USB_CONNECTED = "connected"
 
         /** "Better than nothing": every level counts. */
         const val NONE = 0
