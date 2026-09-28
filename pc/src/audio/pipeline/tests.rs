@@ -90,3 +90,17 @@ fn test_drift_resampling_operation() {
     jb.pop_samples(&mut out, 1);
     assert!(jb.len() < excess_samples.len());
 }
+
+#[test]
+fn test_output_resampled_to_device_rate() {
+    // A 44.1 kHz device must still take the phone's 48 kHz at full speed, or the voice plays
+    // slow and low and the buffer overflows. 10 ms there is 441 frames and 480 phone samples.
+    let jb = JitterBuffer::new();
+    jb.set_output_rate(44_100);
+    jb.push_samples(&[1000i16; 4800]);
+    let before = jb.len();
+    let mut out = [0f32; 441];
+    jb.pop_samples(&mut out, 1);
+    let used = before - jb.len();
+    assert!((478..=483).contains(&used), "used {} samples", used);
+}

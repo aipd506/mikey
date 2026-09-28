@@ -12,6 +12,8 @@ pub fn start_audio_stream(device: &Device, jitter_buffer: Arc<JitterBuffer>) -> 
     let channels = supported_config.channels();
     let sample_format = supported_config.sample_format();
     let config: StreamConfig = supported_config.into();
+    // Shared-mode devices only run at their own rate, often 44.1 kHz, so the output resamples.
+    jitter_buffer.set_output_rate(config.sample_rate.0);
 
     let err_fn = |err| eprintln!("[audio] Stream error: {}", err);
 
@@ -95,14 +97,13 @@ pub fn start_loopback_stream(jitter_buffer: Arc<JitterBuffer>) -> io::Result<Str
         }
         SampleFormat::I16 => {
             let jb = Arc::clone(&jitter_buffer);
+            let mut temp = Vec::new();
             default_output
                 .build_input_stream(
                     &config,
                     move |data: &[i16], _: &cpal::InputCallbackInfo| {
-                        let mut temp = vec![0.0f32; data.len()];
-                        for (d, &t) in temp.iter_mut().zip(data.iter()) {
-                            *d = (t as f32) / 32768.0;
-                        }
+                        temp.clear();
+                        temp.extend(data.iter().map(|&t| t as f32 / 32768.0));
                         jb.push_reference_samples(&temp, channels, sample_rate);
                     },
                     err_fn,
