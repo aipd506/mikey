@@ -2,7 +2,7 @@ package com.mikey.ui
 
 import androidx.compose.ui.graphics.Color
 
-/** Colors from vibe/rules/design-language.md. */
+/** Colors from docs/UI_AND_DESIGN_LANGUAGE.md. */
 object Palette {
     val bg = Color(0xFF000000)
     val sheet = Color(0xFF111111)

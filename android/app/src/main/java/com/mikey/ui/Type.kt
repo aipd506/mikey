@@ -22,7 +22,7 @@ private val geistMono = FontFamily(
     Font(R.font.geist_mono, FontWeight.Normal, variationSettings = FontVariation.Settings(FontVariation.weight(400))),
 )
 
-/** Text styles from vibe/rules/design-language.md. */
+/** Text styles from docs/UI_AND_DESIGN_LANGUAGE.md. */
 object Type {
     /** State labels and section titles, shown in capitals: MIC LIVE, AUDIO. */
     val label = TextStyle(fontFamily = geistMono, fontSize = 11.sp, letterSpacing = 0.14.em, color = Palette.textSecondary)

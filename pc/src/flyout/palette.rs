@@ -1,5 +1,4 @@
 //! Design language palette constants for the Mikey Flyout.
-//! Aligned with vibe/rules/design-language.md: OLED black, surface #111111, divider #2C2C2E.
 
 #![cfg(windows)]
 

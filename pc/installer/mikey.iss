@@ -6,7 +6,7 @@
 #define MyAppName "Mikey"
 #define MyAppVersion "0.1.0"
 #define MyAppPublisher "Mikey Contributors"
-#define MyAppURL "https://github.com/yashthorat7/mikey"
+#define MyAppURL "https://github.com/diveshpatil9104/mikey"
 #define MyAppExeName "mikey.exe"
 
 [Setup]

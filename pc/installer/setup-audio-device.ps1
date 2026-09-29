@@ -152,7 +152,7 @@ Write-Host "[mikey] Refreshing Windows Audio Service..." -ForegroundColor Cyan
 try {
     Restart-Service -Name "Audiosrv" -Force -ErrorAction Stop
     Write-Host "[mikey] Windows Audio Service refreshed." -ForegroundColor Green
-    # Gently notify the shell that device associations changed (do NOT kill explorer —
+    # Gently notify the shell that device associations changed (do NOT kill explorer -
     # that breaks Windows 11 Quick Settings flyouts for Wi-Fi, Sound, Bluetooth)
     $shNotify = @'
 using System;

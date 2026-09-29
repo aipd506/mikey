@@ -29,7 +29,7 @@ Mikey for PC runs as a standalone tray application (`mikey`) that acts as the re
 ### Build & Run
 ```bash
 # Clone the repository
-git clone https://github.com/yashthorat7/mikey.git
+git clone https://github.com/diveshpatil9104/mikey.git
 cd mikey/pc
 
 # Build release binary
