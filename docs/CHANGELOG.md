@@ -7,34 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-- Full open source infrastructure: CONTRIBUTING.md, CODE_OF_CONDUCT.md, SECURITY.md, issue/PR templates
-- Releases folder with download guidance
-- Comprehensive documentation overhaul
+Nothing yet.
 
 ---
 
-## [0.1.0] - In Development
+## [0.1.0] - 2026-09-30
 
-### Android
-- MikeyService foreground service with mic and camera capture
-- TransportManager with 4 connection levels (USB Debug, USB Tether, Wi-Fi, Bluetooth)
-- Make-before-break transport upgrades with 10s hysteresis
-- Opus encoding for Wi-Fi (96 kbps) and Bluetooth (48 kbps)
-- AAudio low-latency capture with AudioRecord fallback
-- CameraX → JPEG → VIDEO frame pipeline
-- Full UI: split halves (camera/mic), settings drawer, status indicators
-- Pairing token storage, PENDING/REJECT handling
-- Notification with live state, mute/unmute, Stop
+The first preview release.
 
-### PC (Rust)
-- TCP listener (:7653), UDP discovery beacon (:7654), Bluetooth RFCOMM
-- SessionManager with trust-on-first-use, ask-before-join, 30s session hold
-- Audio pipeline: Opus/PCM decode → adaptive jitter buffer → drift resampler → SpeexDSP AEC → noise gate → RNNoise → virtual mic
-- Video pipeline: JPEG decode → letterbox → softcam (Windows) / v4l2loopback (Linux)
-- Win32 GDI flyout companion app with VU meter, volume, DSP toggles
-- Tray icon with autostart at login
-- Inno Setup installer (Windows), .deb and AppImage (Linux)
+### Phone app (Android)
+- Foreground service that streams the mic and camera to the PC; the mic and camera always start off
+- Four connection levels chosen automatically: USB debugging, USB tethering, Wi-Fi and Bluetooth (audio only), switching mid-call make-before-break
+- Finds the PC on Wi-Fi with a UDP beacon, and trusts it on first use after the PC approves the phone
+- Raw 48 kHz mic through AAudio with an AudioRecord fallback: PCM over USB, Opus over Wi-Fi (96 kbps) and Bluetooth (48 kbps)
+- Camera through CameraX as JPEG frames, at 720p or 1080p, front or back lens
+- Split-screen UI for the mic and camera, a full-height settings sheet kept in sync with the PC, and a notification with mic and camera buttons
+- Voice always goes out before camera pictures, so a slow link delays video, not voice
 
-[Unreleased]: https://github.com/diveshpatil9104/mikey/compare/HEAD
+### PC app (Windows)
+- Tray app with a native panel: mic level, mute, camera preview and noise suppression
+- TCP listener (`:7653`), UDP discovery beacon (`:7654`), Bluetooth RFCOMM and an adb watcher
+- Sessions with trust on first use, ask-before-join and a 30 s hold when the link drops
+- Audio: Opus or PCM decode, RNNoise noise suppression, an adaptive jitter buffer, smooth drift correction with cubic interpolation, fades at gaps and a soft clip, into VB-CABLE as *Mikey Mic*
+- Video: JPEG decode, smooth scaling to one fixed 1920×1080 size, into the built-in virtual camera *Mikey Cam* (softcam)
+
+### Project
+- CI for the PC app (Windows and Linux) and the Android app, grouped weekly Dependabot updates, a contributing guide, code of conduct, security policy, and issue and pull request templates
+
+[Unreleased]: https://github.com/diveshpatil9104/mikey/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/diveshpatil9104/mikey/releases/tag/v0.1.0
