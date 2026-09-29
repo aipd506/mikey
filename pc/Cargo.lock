@@ -1043,10 +1043,8 @@ version = "0.1.0"
 dependencies = [
  "cpal",
  "minifb",
- "muda",
  "nnnoiseless",
  "opus-decoder",
- "rubato",
  "serde",
  "serde_json",
  "toml",
@@ -1695,18 +1693,6 @@ name = "regex-syntax"
 version = "0.8.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
-
-[[package]]
-name = "rubato"
-version = "0.15.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b5d18b486e7d29a408ef3f825bc1327d8f87af091c987ca2f5b734625940e234"
-dependencies = [
- "num-complex",
- "num-integer",
- "num-traits",
- "realfft",
-]
 
 [[package]]
 name = "rustc-hash"
