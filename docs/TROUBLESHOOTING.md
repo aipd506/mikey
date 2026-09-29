@@ -59,9 +59,9 @@ Common issues and solutions for Mikey. If your problem isn't listed here, [open 
 **Symptoms:** The remote person hears themselves echoed back.
 
 **Solutions:**
-1. **Enable AEC:** In the Mikey phone app settings, enable "Echo Cancellation".
-2. **Check echo reference device:** In the PC tray flyout, ensure the echo reference is set to your speakers/headphones output.
-3. **Use headphones:** The simplest fix. AEC works best with speakers, but headphones eliminate echo entirely.
+1. **Use headphones:** The simplest fix: the phone can't pick up the call's sound then.
+2. **Move the phone away from the speakers,** or turn them down.
+3. **Keep the meeting app's own echo cancellation on:** Zoom, Meet and Teams all have one. Mikey doesn't cancel echo itself.
 
 ### Audio sounds robotic or choppy
 

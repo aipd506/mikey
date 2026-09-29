@@ -63,24 +63,18 @@ class Settings(context: Context) {
         set(value) = prefs.edit().putStringSet(KEY_LEVELS, value.map { it.toString() }.toSet()).apply()
 
     /**
-     * The audio processing the PC does for us. Defaults: noise suppression on and high, echo
-     * cancellation on, noise gate off (phone-ux.md). Either side can change them; the phone keeps them.
+     * The audio processing the PC does for us. Default: noise suppression on and high. Either side
+     * can change it; the phone keeps it.
      */
     var audio: AudioSettings
         get() = AudioSettings(
             ns = prefs.getBoolean(KEY_NS, true),
             nsStrength = prefs.getFloat(KEY_NS_STRENGTH, 0.8f),
-            aec = prefs.getBoolean(KEY_AEC, true),
-            gateDb = if (prefs.contains(KEY_GATE_DB)) prefs.getFloat(KEY_GATE_DB, 0f) else null,
         )
-        set(value) {
-            val edit = prefs.edit()
-                .putBoolean(KEY_NS, value.ns)
-                .putFloat(KEY_NS_STRENGTH, value.nsStrength)
-                .putBoolean(KEY_AEC, value.aec)
-            if (value.gateDb == null) edit.remove(KEY_GATE_DB) else edit.putFloat(KEY_GATE_DB, value.gateDb)
-            edit.apply()
-        }
+        set(value) = prefs.edit()
+            .putBoolean(KEY_NS, value.ns)
+            .putFloat(KEY_NS_STRENGTH, value.nsStrength)
+            .apply()
 
     /** The camera used last time; a flip is remembered (phone-ux.md). */
     var lens: Lens
@@ -150,8 +144,6 @@ class Settings(context: Context) {
         const val KEY_FPS = "camera.fps"
         const val KEY_NS = "audio.ns"
         const val KEY_NS_STRENGTH = "audio.nsStrength"
-        const val KEY_AEC = "audio.aec"
-        const val KEY_GATE_DB = "audio.gateDb"
         const val KEY_LEVELS = "levels.enabled"
         const val KEY_MANUAL_PC_ADDRESS = "pc.manualAddress"
         const val KEY_KEEP_SCREEN_ON = "ui.keepScreenOn"

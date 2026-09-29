@@ -13,7 +13,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ScreenModelTest {
-    private val usb = Link.Live(1, setOf("pcm", "opus", "vcam", "aec", "rnnoise"))
+    private val usb = Link.Live(1, setOf("pcm", "opus", "vcam", "rnnoise"))
 
     @Test
     fun theMicIsInvitingWhenIdleAndInvertedOnlyWhenThePcReceives() {
@@ -60,8 +60,8 @@ class ScreenModelTest {
 
     @Test
     fun settingsTheConnectedPcCantDoAreGreyedOut() {
-        assertTrue(pcCan(MikeyState(), "aec"))
-        assertTrue(pcCan(MikeyState(link = usb), "aec"))
+        assertTrue(pcCan(MikeyState(), "rnnoise"))
+        assertTrue(pcCan(MikeyState(link = usb), "rnnoise"))
         assertFalse(pcCan(MikeyState(link = Link.Live(1, setOf("pcm"))), "rnnoise"))
     }
 
@@ -71,18 +71,6 @@ class ScreenModelTest {
         assertEquals(Header(R.string.sheet_idle), sheetHeader(MikeyState()))
         assertEquals(Header(R.string.sheet_reconnecting), sheetHeader(MikeyState(micOn = true, reconnecting = true)))
         assertEquals(R.string.level_wifi, levelName(3))
-    }
-
-    @Test
-    fun theGateSliderRunsFromOffThroughMinus60ToMinus20() {
-        assertEquals(0, gateStep(null))
-        assertNull(gateDbAt(0))
-        assertEquals(1, gateStep(-60f))
-        assertEquals(16, gateStep(-45f))
-        assertEquals(GATE_STEPS, gateStep(-20f))
-        assertEquals(-45f, gateDbAt(16))
-        assertEquals(-20f, gateDbAt(GATE_STEPS))
-        assertEquals(1, gateStep(-90f)) // Out of range from an old PC: the lowest threshold, not off.
     }
 
     @Test

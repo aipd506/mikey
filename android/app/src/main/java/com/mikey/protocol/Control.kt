@@ -2,8 +2,8 @@ package com.mikey.protocol
 
 import org.json.JSONObject
 
-/** The audio settings the PC applies for us (media-pipeline.md). [gateDb] null means the noise gate is off. */
-data class AudioSettings(val ns: Boolean, val nsStrength: Float, val aec: Boolean, val gateDb: Float?)
+/** The audio settings the PC applies for us (docs/AUDIO_PIPELINE.md). */
+data class AudioSettings(val ns: Boolean, val nsStrength: Float)
 
 /**
  * A CONTROL frame (wire-protocol.md). Every part is optional: [audio] carries our settings,
@@ -16,8 +16,6 @@ fun controlPayload(audio: AudioSettings? = null, muted: Boolean? = null, videoOn
         audio?.let {
             section.put("ns", it.ns)
                 .put("ns_strength", it.nsStrength.toDouble())
-                .put("aec", it.aec)
-                .put("gate_db", it.gateDb?.toDouble() ?: JSONObject.NULL)
         }
         muted?.let { section.put("muted", it) }
         json.put("audio", section)
@@ -35,10 +33,6 @@ fun controlPayload(audio: AudioSettings? = null, muted: Boolean? = null, videoOn
 class ControlUpdate(
     val ns: Boolean? = null,
     val nsStrength: Float? = null,
-    val aec: Boolean? = null,
-    val gateDb: Float? = null,
-    /** `gate_db` was sent as null: switch the gate off. */
-    val gateOff: Boolean = false,
     val muted: Boolean? = null,
     val videoOn: Boolean? = null,
     /** `back`, `front` or `flip`. */
@@ -47,8 +41,6 @@ class ControlUpdate(
     fun applyTo(settings: AudioSettings) = AudioSettings(
         ns = ns ?: settings.ns,
         nsStrength = nsStrength ?: settings.nsStrength,
-        aec = aec ?: settings.aec,
-        gateDb = if (gateOff) null else gateDb ?: settings.gateDb,
     )
 }
 
@@ -59,9 +51,6 @@ fun parseControl(payload: ByteArray): ControlUpdate {
     return ControlUpdate(
         ns = audio?.bool("ns"),
         nsStrength = audio?.number("ns_strength"),
-        aec = audio?.bool("aec"),
-        gateDb = audio?.number("gate_db"),
-        gateOff = audio != null && audio.has("gate_db") && audio.isNull("gate_db"),
         muted = audio?.bool("muted"),
         videoOn = video?.bool("on"),
         lens = video?.text("lens"),

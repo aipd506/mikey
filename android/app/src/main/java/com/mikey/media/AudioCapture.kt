@@ -16,7 +16,7 @@ class AudioFrame(val seq: Int, val captureTimeUs: Long, val pcm: ByteArray)
 /**
  * Records raw audio (48 kHz, mono, 16-bit) in 10 ms frames on its own high-priority thread:
  * with AAudio in low-latency mode where it works, with AudioRecord otherwise (media-pipeline.md).
- * No processing on the phone: noise suppression and echo cancellation run on the PC.
+ * No processing on the phone: noise suppression runs on the PC.
  * [onFrame] runs on the capture thread and must never block.
  */
 class AudioCapture(private val context: Context, private val onFrame: (AudioFrame) -> Unit) {
@@ -88,7 +88,7 @@ class AudioCapture(private val context: Context, private val onFrame: (AudioFram
     private fun source(): Int {
         val unprocessed = context.getSystemService(AudioManager::class.java)
             .getProperty(AudioManager.PROPERTY_SUPPORT_AUDIO_SOURCE_UNPROCESSED) == "true"
-        // Never VOICE_COMMUNICATION: its noise suppression and gain would hurt the PC's echo canceller.
+        // Never VOICE_COMMUNICATION: its own noise suppression and gain would fight the PC's.
         return if (unprocessed) MediaRecorder.AudioSource.UNPROCESSED else MediaRecorder.AudioSource.MIC
     }
 

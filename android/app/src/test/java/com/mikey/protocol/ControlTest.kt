@@ -1,11 +1,10 @@
 package com.mikey.protocol
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Test
 
 class ControlTest {
-    private val current = AudioSettings(ns = true, nsStrength = 0.8f, aec = true, gateDb = -45f)
+    private val current = AudioSettings(ns = true, nsStrength = 0.8f)
 
     @Test
     fun anEmptyUpdateChangesNothing() {
@@ -14,14 +13,7 @@ class ControlTest {
 
     @Test
     fun onlyTheFieldsSentChange() {
-        val updated = ControlUpdate(aec = false, nsStrength = 0.3f).applyTo(current)
-
-        assertEquals(AudioSettings(ns = true, nsStrength = 0.3f, aec = false, gateDb = -45f), updated)
-    }
-
-    @Test
-    fun aNullGateSwitchesItOffAndAValueSetsIt() {
-        assertNull(ControlUpdate(gateOff = true).applyTo(current).gateDb)
-        assertEquals(-30f, ControlUpdate(gateDb = -30f).applyTo(current.copy(gateDb = null)).gateDb)
+        assertEquals(AudioSettings(ns = true, nsStrength = 0.3f), ControlUpdate(nsStrength = 0.3f).applyTo(current))
+        assertEquals(AudioSettings(ns = false, nsStrength = 0.8f), ControlUpdate(ns = false).applyTo(current))
     }
 }
