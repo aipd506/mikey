@@ -1,0 +1,97 @@
+name: Bug Report
+description: Something isn't working as expected
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time to report a bug.
+        Please fill out the sections below so we can reproduce and fix the issue.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: A clear description of what went wrong.
+      placeholder: "When I tap the mic button while on Wi-Fi, the PC shows 'connected' but no audio comes through."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps to trigger the bug.
+      placeholder: |
+        1. Open Mikey on phone
+        2. Connect to PC over Wi-Fi
+        3. Tap mic
+        4. Observe: no audio on PC side
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should have happened instead.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which part of Mikey is affected?
+      options:
+        - Android app
+        - PC app (Windows)
+        - PC app (Linux)
+        - Wire protocol
+        - Build / CI
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: connection-level
+    attributes:
+      label: Connection level (if applicable)
+      description: Which transport was active when the bug occurred?
+      options:
+        - N/A
+        - Level 1 - USB Debugging (ADB)
+        - Level 2 - USB Tethering
+        - Level 3 - Wi-Fi / LAN
+        - Level 4 - Bluetooth
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Your setup details.
+      placeholder: |
+        - Phone: Pixel 7, Android 14
+        - PC OS: Windows 11 23H2 / Ubuntu 24.04
+        - Mikey version: v0.x.x or commit hash
+        - Connection: Wi-Fi (same network)
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Paste relevant log output, screenshots, or screen recordings.
+      render: text
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues and this is not a duplicate.
+          required: true
+        - label: I am using the latest version (or have stated the version above).
+          required: true

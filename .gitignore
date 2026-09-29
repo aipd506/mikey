@@ -24,4 +24,4 @@ pc/target/
 # Secrets / local overrides
 *.local
 .env
-*x.md
+*trash.md

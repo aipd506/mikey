@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or discussion
+    url: https://github.com/diveshpatil9104/mikey/discussions
+    about: Ask questions, share ideas, or get help from the community.
+  - name: Security vulnerability
+    url: https://github.com/diveshpatil9104/mikey/security/policy
+    about: Report a security vulnerability privately. Do not open a public issue.
