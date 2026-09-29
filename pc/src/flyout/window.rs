@@ -22,8 +22,6 @@ pub struct FlyoutWindow {
     pub(crate) show_requested: bool,
     pub(crate) is_muted: bool,
     pub(crate) ns_strength: f32,
-    pub(crate) aec_enabled: bool,
-    pub(crate) dsp_gate_enabled: bool,
     pub(crate) shown_at: Option<Instant>,
     pub(crate) last_hidden_at: Option<Instant>,
     pub(crate) last_toggled_at: Instant,
@@ -55,8 +53,6 @@ impl FlyoutWindow {
             show_requested: false,
             is_muted: false,
             ns_strength: 1.0,
-            aec_enabled: true,
-            dsp_gate_enabled: false,
             shown_at: None,
             last_hidden_at: None,
             last_toggled_at: Instant::now() - std::time::Duration::from_secs(10),
@@ -110,8 +106,6 @@ impl FlyoutWindow {
             let strength = self.jitter_buffer.get_ns_strength() as f32 / 100.0;
             self.ns_strength = if ns_on { strength } else { 0.0 };
         }
-        self.aec_enabled = self.jitter_buffer.is_aec_enabled();
-        self.dsp_gate_enabled = self.jitter_buffer.gate_db().is_some();
         self.is_muted = self.session_manager.is_phone_muted();
     }
 

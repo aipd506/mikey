@@ -7,8 +7,8 @@ use std::path::{Path, PathBuf};
 
 static EMBEDDED_SOFTCAM_DLL: &[u8] = include_bytes!("../../../softcam.dll");
 
-const HKEY_CLASSES_ROOT: usize = 0x8000_0000;
-const HKEY_CURRENT_USER: usize = 0x8000_0001;
+const HKEY_CLASSES_ROOT: usize = 0xFFFF_FFFF_8000_0000;
+const HKEY_CURRENT_USER: usize = 0xFFFF_FFFF_8000_0001;
 
 #[link(name = "advapi32")]
 extern "system" {
@@ -93,13 +93,25 @@ pub fn ensure_directshow_registered(dll_path: &Path) {
             HKEY_CURRENT_USER,
             subkey_instance.as_ptr(),
             0,
-            0x20019,
+            0x20006,
             &mut h_check,
         ) == 0
     };
 
     if already_registered {
-        unsafe { RegCloseKey(h_check) };
+        let friendly_name: Vec<u16> = "Mikey Cam\0".encode_utf16().collect();
+        let friendly_val_name: Vec<u16> = "FriendlyName\0".encode_utf16().collect();
+        unsafe {
+            RegSetValueExW(
+                h_check,
+                friendly_val_name.as_ptr(),
+                0,
+                1,
+                friendly_name.as_ptr() as *const u8,
+                (friendly_name.len() * 2) as u32,
+            );
+            RegCloseKey(h_check);
+        }
         return;
     }
 
@@ -161,7 +173,7 @@ pub fn ensure_directshow_registered(dll_path: &Path) {
         )
     };
     if open_res == 0 {
-        let friendly_name: Vec<u16> = "Mikey Camera\0".encode_utf16().collect();
+        let friendly_name: Vec<u16> = "Mikey Cam\0".encode_utf16().collect();
         let friendly_val_name: Vec<u16> = "FriendlyName\0".encode_utf16().collect();
         unsafe {
             RegSetValueExW(

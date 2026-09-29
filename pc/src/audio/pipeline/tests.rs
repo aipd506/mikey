@@ -52,19 +52,12 @@ fn test_auto_normalization_gain_adapts() {
 }
 
 #[test]
-fn test_ns_and_aec_controls() {
+fn test_ns_controls() {
     let jb = JitterBuffer::new();
     assert_eq!(jb.get_ns_strength(), 100);
-    assert!(jb.is_aec_enabled(), "AEC must be ON by default");
 
     jb.set_ns_strength(90);
     assert_eq!(jb.get_ns_strength(), 90);
-
-    jb.set_aec_enabled(false);
-    assert!(!jb.is_aec_enabled());
-
-    jb.set_aec_enabled(true);
-    assert!(jb.is_aec_enabled());
 
     jb.set_ns_strength(150); // clamped
     assert_eq!(jb.get_ns_strength(), 100);

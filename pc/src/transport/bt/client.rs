@@ -57,7 +57,7 @@ pub fn handle_bt_client<S: Read + Write>(
                 pc_name,
                 token,
                 resumed,
-                pc_caps: ["pcm", "opus", "aec", "rnnoise"].map(String::from).to_vec(),
+                pc_caps: ["pcm", "opus", "rnnoise"].map(String::from).to_vec(),
             };
             let welcome_bytes = match serde_json::to_vec(&welcome) {
                 Ok(b) => b,

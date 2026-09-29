@@ -42,8 +42,6 @@ pub enum FlyoutButton {
     TogglePreview,
     FlipCamera,
     NsSlider,
-    ToggleAec,
-    ToggleGate,
     PopOutCamera,
     ToggleAdvanced,
     ToggleAskBeforeJoin,

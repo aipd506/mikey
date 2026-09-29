@@ -80,7 +80,7 @@ pub fn perform_handshake(
                 pc_name,
                 token,
                 resumed,
-                pc_caps: ["pcm", "opus", "vcam", "aec", "rnnoise"]
+                pc_caps: ["pcm", "opus", "vcam", "rnnoise"]
                     .map(String::from)
                     .to_vec(),
             };

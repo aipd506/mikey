@@ -55,7 +55,7 @@ Pressed state: 0.08 white alpha overlay. Nothing else.
   - **Minimal Typography & Soft Iconography:** Crisp Segoe UI vector fonts (11–15px), sentence case, zero unnecessary text labels. Native vector Heroicons (1.8px rounded stroke, round line caps/joins).
   - **Live Audio VU Meter:** Smooth horizontal pill (height 4 px) integrated directly into the microphone row, track `#1C1C1E`. Level bar renders `#30D158` (normal), `#FFD60A` (peak > -6 dB), `#FF453A` (clipping 0 dB). Instant attack, smooth decay.
   - **Unified Smooth Pills:** Rounded pill buttons (height 26 px, 13 px radius). Active background `#30D158` (audio) or `#0A84FF` (video), inactive background `#1C1C1E` with `#2C2C2E` border.
-  - **Always-On AEC:** Echo cancellation runs permanently in the DSP background with WASAPI loopback reference. No UI toggle button is rendered, avoiding user confusion and saving horizontal space.
+  - **Pure Neural Noise Suppression:** RNNoise neural noise suppression runs cleanly in the DSP background with dynamic strength control. Echo cancellation and noise gate are removed to eliminate meeting ducking and audio cutouts.
   - **Smooth Noise Suppression Slider:** 6 px rounded track (`#1C1C1E`), active fill `#30D158`, 14 px circular anti-aliased thumb with inner ring.
   - **Persistent Camera Option:** Visual preview pill button (`[ Preview ]`) always available to open/toggle floating camera preview window, even when camera is off/idle.
   - **Lens Flip Control:** Visual `[ Flip ]` pill button to trigger front/back camera switch remotely.

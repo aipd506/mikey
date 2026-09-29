@@ -23,24 +23,8 @@ impl JitterBuffer {
         }
     }
 
-    /// The noise gate threshold in dB, or None for no gate (the default).
-    pub fn set_gate_db(&self, gate_db: Option<f32>) {
-        let bits = gate_db.unwrap_or(f32::NAN).to_bits();
-        self.gate_db_bits.store(bits, Ordering::Release);
-    }
-
-    pub fn gate_db(&self) -> Option<f32> {
-        Some(f32::from_bits(self.gate_db_bits.load(Ordering::Acquire))).filter(|db| !db.is_nan())
-    }
-
     /// The output device's sample rate. The phone's 48 kHz is resampled to it on the way out.
     pub fn set_output_rate(&self, rate: u32) {
         self.output_rate.store(rate.max(1), Ordering::Relaxed);
     }
-}
-
-/// A gate threshold in dB below full scale as the RMS of 16-bit samples, 0 for no gate.
-/// -45 dB is about 184.
-pub fn gate_rms(gate_db: Option<f32>) -> f32 {
-    gate_db.map_or(0.0, |db| 32768.0 * 10f32.powf(db / 20.0))
 }

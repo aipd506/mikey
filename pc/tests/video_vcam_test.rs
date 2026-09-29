@@ -27,8 +27,8 @@ fn test_softcam_dll_registration() {
         fn RegCloseKey(hKey: usize) -> i32;
     }
 
-    const HKEY_CLASSES_ROOT: usize = 0x8000_0000;
-    const HKEY_CURRENT_USER: usize = 0x8000_0001;
+    const HKEY_CLASSES_ROOT: usize = 0xFFFF_FFFF_8000_0000;
+    const HKEY_CURRENT_USER: usize = 0xFFFF_FFFF_8000_0001;
     let subkey: Vec<u16> = "Software\\Classes\0".encode_utf16().collect();
     let mut hkcu_classes = 0usize;
 
@@ -82,6 +82,10 @@ fn test_directshow_device_enumeration() {
 
     unsafe { CoInitialize(std::ptr::null_mut()) };
 
+    mikey::video::vcam::install::ensure_directshow_registered(&std::path::PathBuf::from(
+        "softcam.dll",
+    ));
+
     let key_path = "Software\\Classes\\CLSID\\{860BB310-5D01-11D0-BD3B-00A0C911CE86}\\Instance\\DirectShow Softcam\0";
     let subkey: Vec<u16> = key_path.encode_utf16().collect();
     const HKEY_CURRENT_USER: usize = 0x8000_0001;
@@ -109,7 +113,7 @@ fn test_directshow_device_enumeration() {
 
     let open_res =
         unsafe { RegOpenKeyExW(HKEY_CURRENT_USER, subkey.as_ptr(), 0, 0x20019, &mut h_key) };
-    assert_eq!(open_res, 0, "Mikey Camera DirectShow key must be openable");
+    assert_eq!(open_res, 0, "Mikey Cam DirectShow key must be openable");
 
     let friendly_name_key: Vec<u16> = "FriendlyName\0".encode_utf16().collect();
     let mut val_type = 0u32;
@@ -133,6 +137,7 @@ fn test_directshow_device_enumeration() {
         "Enumerated DirectShow capture device FriendlyName: {}",
         name.trim_matches('\0')
     );
+    assert_eq!(name.trim_matches('\0'), "Mikey Cam");
 
     unsafe {
         RegCloseKey(h_key);
