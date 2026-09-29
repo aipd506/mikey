@@ -27,51 +27,58 @@ impl DecodedFrame {
         );
     }
 
-    /// Letterboxes or pillarboxes this frame into a target dimension (dst_w, dst_h)
-    /// preserving original aspect ratio with black bars.
-    pub fn letterbox(&self, dst_w: usize, dst_h: usize) -> DecodedFrame {
-        if self.width == dst_w && self.height == dst_h {
-            return self.clone();
-        }
+    /// Scales this frame to fit `dst_w` x `dst_h` into `out`, keeping its shape, with black bars
+    /// where it doesn't fill. Bilinear, so a 720p picture scaled up to 1080p stays smooth
+    /// instead of blocky. `out` is reused, so a steady stream allocates nothing.
+    pub fn letterbox_into(&self, dst_w: usize, dst_h: usize, out: &mut Vec<u8>) {
+        out.clear();
+        out.resize(dst_w * dst_h * 3, 0);
 
-        let mut out = vec![0u8; dst_w * dst_h * 3]; // black background
+        let scale = (dst_w as f32 / self.width as f32).min(dst_h as f32 / self.height as f32);
+        let scaled_w = ((self.width as f32 * scale).round() as usize).clamp(1, dst_w);
+        let scaled_h = ((self.height as f32 * scale).round() as usize).clamp(1, dst_h);
+        let (offset_x, offset_y) = ((dst_w - scaled_w) / 2, (dst_h - scaled_h) / 2);
 
-        let scale_w = dst_w as f32 / self.width as f32;
-        let scale_h = dst_h as f32 / self.height as f32;
-        let scale = scale_w.min(scale_h);
-
-        let scaled_w = ((self.width as f32 * scale).round() as usize)
-            .max(1)
-            .min(dst_w);
-        let scaled_h = ((self.height as f32 * scale).round() as usize)
-            .max(1)
-            .min(dst_h);
-
-        let offset_x = (dst_w - scaled_w) / 2;
-        let offset_y = (dst_h - scaled_h) / 2;
-
-        // Bilinear or nearest-neighbor blit into target
-        for dy in 0..scaled_h {
-            let sy = (dy as f32 / scale) as usize;
-            let sy = sy.min(self.height - 1);
-            let target_y = offset_y + dy;
-
-            for dx in 0..scaled_w {
-                let sx = (dx as f32 / scale) as usize;
-                let sx = sx.min(self.width - 1);
-                let target_x = offset_x + dx;
-
-                let src_idx = (sy * self.width + sx) * 3;
-                let dst_idx = (target_y * dst_w + target_x) * 3;
-
-                out[dst_idx..dst_idx + 3].copy_from_slice(&self.bgr[src_idx..src_idx + 3]);
+        // Byte offsets of the two source pixels behind each output column, and the second's weight.
+        let columns: Vec<(usize, usize, u32)> = (0..scaled_w)
+            .map(|dx| {
+                let (sx, wx) = sample_at(dx, scaled_w, self.width);
+                (sx * 3, (sx + 1).min(self.width - 1) * 3, wx)
+            })
+            .collect();
+        let widen = |src: &[u8], dst: &mut [u32]| {
+            for (d, &(a, b, w)) in dst.as_chunks_mut::<3>().0.iter_mut().zip(&columns) {
+                for c in 0..3 {
+                    d[c] = src[a + c] as u32 * (256 - w) + src[b + c] as u32 * w;
+                }
             }
-        }
+        };
 
-        DecodedFrame {
-            width: dst_w,
-            height: dst_h,
-            bgr: out,
+        // The two source rows an output row blends, already scaled across. Output rows go down in
+        // order and neighbours mostly share source rows, so each is scaled across about once.
+        let stride = self.width * 3;
+        let (mut top, mut bottom) = (vec![0u32; scaled_w * 3], vec![0u32; scaled_w * 3]);
+        let (mut top_y, mut bottom_y) = (usize::MAX, usize::MAX);
+        for dy in 0..scaled_h {
+            let (sy, wy) = sample_at(dy, scaled_h, self.height);
+            let sy_next = (sy + 1).min(self.height - 1);
+            if top_y != sy {
+                if bottom_y == sy {
+                    std::mem::swap(&mut top, &mut bottom);
+                    bottom_y = usize::MAX;
+                } else {
+                    widen(&self.bgr[sy * stride..][..stride], &mut top);
+                }
+                top_y = sy;
+            }
+            if bottom_y != sy_next {
+                widen(&self.bgr[sy_next * stride..][..stride], &mut bottom);
+                bottom_y = sy_next;
+            }
+            let row = &mut out[((offset_y + dy) * dst_w + offset_x) * 3..][..scaled_w * 3];
+            for ((px, &t), &b) in row.iter_mut().zip(&top).zip(&bottom) {
+                *px = ((t * (256 - wy) + b * wy + (1 << 15)) >> 16) as u8;
+            }
         }
     }
 
@@ -112,6 +119,14 @@ impl DecodedFrame {
     }
 }
 
+/// Maps pixel `d` of `dst_len` onto a source `src_len` long, by pixel centers: the source pixel
+/// at or before it, and how much (0 to 256) the next one counts.
+fn sample_at(d: usize, dst_len: usize, src_len: usize) -> (usize, u32) {
+    let pos = ((d as f32 + 0.5) * src_len as f32 / dst_len as f32 - 0.5).max(0.0);
+    let i = (pos as usize).min(src_len - 1);
+    (i, ((pos - i as f32) * 256.0) as u32)
+}
+
 /// Decodes a JPEG payload straight to BGR, into `buf` when it's big enough, so a steady stream
 /// of frames allocates nothing.
 pub fn decode_jpeg(jpeg_bytes: &[u8], mut buf: Vec<u8>) -> Result<DecodedFrame, String> {
@@ -142,4 +157,57 @@ pub fn decode_jpeg(jpeg_bytes: &[u8], mut buf: Vec<u8>) -> Result<DecodedFrame, 
         height,
         bgr: buf,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn solid(width: usize, height: usize, value: u8) -> DecodedFrame {
+        DecodedFrame::new(width, height, vec![value; width * height * 3])
+    }
+
+    #[test]
+    fn test_letterbox_same_size_is_unchanged() {
+        let frame = DecodedFrame::new(4, 2, (0..24).collect());
+        let mut out = Vec::new();
+        frame.letterbox_into(4, 2, &mut out);
+        assert_eq!(out, frame.bgr);
+    }
+
+    #[test]
+    fn test_letterbox_720p_fills_1080p() {
+        let mut out = Vec::new();
+        solid(1280, 720, 200).letterbox_into(1920, 1080, &mut out);
+        assert_eq!(out.len(), 1920 * 1080 * 3);
+        assert!(
+            out.iter().all(|&v| v == 200),
+            "same shape: no bars, no seams"
+        );
+    }
+
+    #[test]
+    fn test_letterbox_4_3_gets_side_bars() {
+        let mut out = Vec::new();
+        solid(960, 720, 200).letterbox_into(1920, 1080, &mut out);
+        // 960x720 scales to 1440x1080, centred: 240 black columns each side.
+        let pixel = |x: usize, y: usize| out[(y * 1920 + x) * 3];
+        for y in [0, 540, 1079] {
+            assert_eq!(pixel(0, y), 0);
+            assert_eq!(pixel(239, y), 0);
+            assert_eq!(pixel(240, y), 200);
+            assert_eq!(pixel(1679, y), 200);
+            assert_eq!(pixel(1680, y), 0);
+        }
+    }
+
+    #[test]
+    fn test_letterbox_upscale_is_smooth() {
+        // Nearest-pixel scaling turned [0, 255] into [0, 0, 255, 255]; blending gives steps between.
+        let frame = DecodedFrame::new(2, 1, vec![0, 0, 0, 255, 255, 255]);
+        let mut out = Vec::new();
+        frame.letterbox_into(4, 2, &mut out);
+        let row: Vec<u8> = out[..12].chunks(3).map(|p| p[0]).collect();
+        assert_eq!(row, [0, 64, 191, 255]);
+    }
 }

@@ -64,6 +64,25 @@ impl SoftcamApi {
     }
 }
 
+#[cfg(test)]
+impl SoftcamApi {
+    /// Stand-ins for softcam.dll's functions, for tests.
+    pub fn fake(
+        create_camera: FnCreateCamera,
+        send_frame: FnSendFrame,
+        delete_camera: FnDeleteCamera,
+        is_connected: FnIsConnected,
+    ) -> Self {
+        Self {
+            _dll: 0,
+            create_camera,
+            send_frame,
+            delete_camera,
+            is_connected,
+        }
+    }
+}
+
 #[cfg(not(windows))]
 impl SoftcamApi {
     pub fn load() -> Option<Self> {

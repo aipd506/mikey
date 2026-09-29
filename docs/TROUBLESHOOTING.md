@@ -76,12 +76,12 @@ Common issues and solutions for Mikey. If your problem isn't listed here, [open 
 
 ## Video Issues
 
-### Meeting app doesn't show Mikey camera
+### Meeting app doesn't show Mikey Cam, or shows it black
 
 **Solutions:**
-1. **Windows:** The softcam virtual camera must be registered. If you used the installer, this is automatic. If building from source, run `regsvr32 softcam.dll` from an admin command prompt.
+1. **Windows:** Mikey registers *Mikey Cam* for your user the first time it runs; no admin step is needed.
 2. **Linux:** Ensure `v4l2loopback` is loaded: `sudo modprobe v4l2loopback`.
-3. Restart your meeting app after setting up the virtual camera. Some apps only enumerate cameras at startup.
+3. Browsers (Chrome, Edge) and some apps list cameras once and keep that list until a real camera is plugged in or removed. If Mikey started after the browser was already open, or you just updated from a Mikey whose camera was 1280×720, restart the browser once. Mikey starts at sign-in, so this is rare.
 4. Video is not available on Bluetooth (Level 4).
 
 ### Camera preview is sideways or upside down

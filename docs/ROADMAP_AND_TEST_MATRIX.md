@@ -50,9 +50,9 @@ This document tracks Mikey’s five implementation phases, current development s
 - [x] **Android**: Camera disabled with informative message over Bluetooth or when PC lacks virtual camera.
 - [x] **Android**: Gravity orientation hysteresis (20° threshold) ensuring upright video output.
 - [x] **PC**: TurboJPEG SIMD background decoding thread.
-- [x] **PC**: DirectShow virtual camera filter registration (`softcam.dll`) exposed as "Mikey Camera".
+- [x] **PC**: DirectShow virtual camera filter registration (`softcam.dll`) exposed as "Mikey Cam".
 - [x] **PC**: Aspect ratio preservation with automatic letterboxing/pillarboxing.
-- [x] **PC**: Privacy placeholder frame (1280×720) displayed when camera is toggled off.
+- [x] **PC**: Privacy placeholder frame (1920×1080) displayed when camera is toggled off.
 - [x] **PC**: Detached native Win32 floating preview window.
 
 ### 2.4 Phase 4 - Audio Quality & DSP (Complete)
