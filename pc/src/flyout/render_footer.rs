@@ -31,7 +31,7 @@ pub fn render_footer_section(
         footer_y,
         90,
         footer_y + btn_size,
-        "Mikey v1.0",
+        concat!("Mikey v", env!("CARGO_PKG_VERSION")),
         DT_CENTER_V,
     );
 
