@@ -1,6 +1,5 @@
 use super::types::*;
 use super::window::FlyoutWindow;
-use crate::audio::pipeline::DEFAULT_GATE_DB;
 use crate::config::Config;
 use crate::protocol::{ControlAudioPayload, ControlPayload, ControlVideoPayload};
 use std::sync::atomic::Ordering;
@@ -108,29 +107,6 @@ impl FlyoutWindow {
                     self.session_manager.queue_control(ControlPayload {
                         video: Some(ControlVideoPayload {
                             lens: Some("flip".to_string()),
-                            ..Default::default()
-                        }),
-                        ..Default::default()
-                    });
-                }
-                FlyoutButton::ToggleAec => {
-                    self.aec_enabled = !self.aec_enabled;
-                    self.jitter_buffer.set_aec_enabled(self.aec_enabled);
-                    self.session_manager.queue_control(ControlPayload {
-                        audio: Some(ControlAudioPayload {
-                            aec: Some(self.aec_enabled),
-                            ..Default::default()
-                        }),
-                        ..Default::default()
-                    });
-                }
-                FlyoutButton::ToggleGate => {
-                    self.dsp_gate_enabled = !self.dsp_gate_enabled;
-                    let gate_db = self.dsp_gate_enabled.then_some(DEFAULT_GATE_DB);
-                    self.jitter_buffer.set_gate_db(gate_db);
-                    self.session_manager.queue_control(ControlPayload {
-                        audio: Some(ControlAudioPayload {
-                            gate_db: Some(gate_db),
                             ..Default::default()
                         }),
                         ..Default::default()

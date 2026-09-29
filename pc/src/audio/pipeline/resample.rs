@@ -44,35 +44,6 @@ impl JitterStats {
     }
 }
 
-pub(crate) fn downmix_and_resample_reference(
-    samples: &[f32],
-    channels: u16,
-    sample_rate: u32,
-) -> Vec<f32> {
-    let ch = channels.max(1) as usize;
-    let mut mono = Vec::with_capacity(samples.len() / ch);
-    for frame in samples.chunks(ch) {
-        let sum: f32 = frame.iter().sum();
-        mono.push(sum / ch as f32);
-    }
-
-    if sample_rate != SAMPLE_RATE && sample_rate > 0 {
-        let ratio = SAMPLE_RATE as f32 / sample_rate as f32;
-        let out_len = ((mono.len() as f32) * ratio) as usize;
-        let mut resampled = Vec::with_capacity(out_len);
-        for i in 0..out_len {
-            let src_idx = (i as f32) / ratio;
-            let idx0 = (src_idx as usize).min(mono.len() - 1);
-            let idx1 = (idx0 + 1).min(mono.len() - 1);
-            let frac = src_idx - (idx0 as f32);
-            resampled.push(mono[idx0] + frac * (mono[idx1] - mono[idx0]));
-        }
-        resampled
-    } else {
-        mono
-    }
-}
-
 /// `step` is how many 48 kHz samples one output frame advances: 48 kHz over the device's rate.
 /// Drift correction then nudges it by up to MAX_DRIFT_RATIO to hold the buffer at `target`.
 #[allow(clippy::too_many_arguments)]

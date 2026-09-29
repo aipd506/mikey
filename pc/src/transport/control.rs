@@ -22,12 +22,6 @@ pub fn apply_phone_control(
         if let Some(strength) = audio.ns_strength {
             jitter_buffer.set_ns_strength((strength * 100.0) as u32);
         }
-        if let Some(aec) = audio.aec {
-            jitter_buffer.set_aec_enabled(aec);
-        }
-        if let Some(gate_db) = audio.gate_db {
-            jitter_buffer.set_gate_db(gate_db);
-        }
         if let Some(muted) = audio.muted {
             session_manager.set_phone_muted(muted);
         }
@@ -103,15 +97,10 @@ mod tests {
         apply_phone_control(full, &jb, None, &sm);
         assert!(!jb.is_ns_enabled());
         assert_eq!(jb.get_ns_strength(), 80);
-        assert!(!jb.is_aec_enabled());
-        assert_eq!(jb.gate_db(), Some(-40.0));
         assert!(sm.is_phone_muted());
 
-        // A partial update changes only what it names; an explicit null switches the gate off.
+        // A partial update changes only what it names.
         apply_phone_control(br#"{"audio":{"muted":false}}"#, &jb, None, &sm);
-        assert_eq!(jb.gate_db(), Some(-40.0));
         assert!(!sm.is_phone_muted());
-        apply_phone_control(br#"{"audio":{"gate_db":null}}"#, &jb, None, &sm);
-        assert_eq!(jb.gate_db(), None);
     }
 }

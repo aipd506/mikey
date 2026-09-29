@@ -6,11 +6,10 @@ mod resample;
 mod tests;
 
 pub use constants::*;
-pub use controls::gate_rms;
 
 use crate::audio::dsp::AudioDsp;
 use normalizer::AudioNormalizer;
-use resample::{downmix_and_resample_reference, JitterStats};
+use resample::JitterStats;
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
 use std::sync::Mutex;
@@ -25,8 +24,6 @@ pub struct JitterBuffer {
     normalizer: AudioNormalizer,
     ns_strength: AtomicUsize,
     ns_enabled: AtomicBool,
-    aec_enabled: AtomicBool,
-    gate_db_bits: AtomicU32,
     dsp: Mutex<AudioDsp>,
     stats: Mutex<JitterStats>,
     resample_phase: Mutex<f32>,
@@ -45,8 +42,6 @@ impl JitterBuffer {
             normalizer: AudioNormalizer::new(),
             ns_strength: AtomicUsize::new(100),
             ns_enabled: AtomicBool::new(true),
-            aec_enabled: AtomicBool::new(true),
-            gate_db_bits: AtomicU32::new(f32::NAN.to_bits()),
             dsp: Mutex::new(AudioDsp::new()),
             stats: Mutex::new(JitterStats::new()),
             resample_phase: Mutex::new(0.0),
@@ -65,25 +60,6 @@ impl JitterBuffer {
 
     pub fn get_ns_strength(&self) -> u32 {
         self.ns_strength.load(Ordering::Acquire) as u32
-    }
-
-    pub fn set_aec_enabled(&self, enabled: bool) {
-        self.aec_enabled.store(enabled, Ordering::Release);
-    }
-
-    pub fn is_aec_enabled(&self) -> bool {
-        self.aec_enabled.load(Ordering::Acquire)
-    }
-
-    pub fn push_reference_samples(&self, samples: &[f32], channels: u16, sample_rate: u32) {
-        if samples.is_empty() {
-            return;
-        }
-
-        let resampled = downmix_and_resample_reference(samples, channels, sample_rate);
-        if let Ok(mut dsp) = self.dsp.lock() {
-            dsp.push_reference(&resampled);
-        }
     }
 
     pub fn set_level(&self, level: u8) {
@@ -128,8 +104,7 @@ impl JitterBuffer {
         let mut processed = samples.to_vec();
         if let Ok(mut dsp) = self.dsp.lock() {
             let ns = self.effective_ns_strength();
-            let aec = self.is_aec_enabled();
-            dsp.process(&mut processed, ns, aec, gate_rms(self.gate_db()));
+            dsp.process(&mut processed, ns);
         }
 
         self.normalizer.update(&processed);

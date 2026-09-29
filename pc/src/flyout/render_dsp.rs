@@ -1,4 +1,4 @@
-//! Settings drawer with Noise Suppression slider and Gate toggle.
+//! Settings drawer with Noise Suppression slider.
 //! Collapsible drawer opened via the Settings button.
 
 #![cfg(windows)]
@@ -48,65 +48,14 @@ pub fn render_dsp_section(
         draw_hero_sound(g, graphics, 36.0, cy, ARGB_TEXT_SECONDARY);
     }
 
-    let gate_w = 56;
-    let gate_h = 24;
-    let gate_r = 12.0;
-    let gate_left = card_left + card_w - 10 - gate_w;
-    let gate_y = y + 10;
-    let gate_rect = rect(gate_left, gate_y, gate_left + gate_w, gate_y + gate_h);
-    flyout
-        .button_rects
-        .push((FlyoutButton::ToggleGate, gate_rect));
-    let gate_hover = flyout.hover_btn == Some(FlyoutButton::ToggleGate);
-
-    let (gate_bg, gate_bd, gate_fg) = if flyout.dsp_gate_enabled {
-        (
-            if gate_hover {
-                ARGB_PILL_HOVER
-            } else {
-                ARGB_SURFACE
-            },
-            ARGB_MIC_ON,
-            COLOR_MIC_ON,
-        )
-    } else if gate_hover {
-        (ARGB_PILL_HOVER, ARGB_BORDER_HI, COLOR_TEXT_PRIMARY)
-    } else {
-        (ARGB_SURFACE, ARGB_BORDER, COLOR_TEXT_SECONDARY)
-    };
-
-    if let Some(g) = g_opt {
-        draw_smooth_pill(
-            g,
-            graphics,
-            gate_left as f32,
-            gate_y as f32,
-            gate_w as f32,
-            gate_h as f32,
-            gate_r,
-            gate_bg,
-            gate_bd,
-        );
-    }
-    draw_text(
-        dc,
-        fonts.body_bold,
-        gate_fg,
-        gate_left,
-        gate_y,
-        gate_left + gate_w,
-        gate_y + gate_h,
-        "Gate",
-        DT_CENTER_V,
-    );
-
     let slider_left = 56.0;
-    let slider_right = (gate_left - 10) as f32;
+    let slider_right = (card_left + card_w - 14) as f32;
+    let slider_y = y + 10;
     let slider_touch_rect = rect(
         slider_left as i32,
-        gate_y,
+        slider_y,
         slider_right as i32,
-        gate_y + gate_h,
+        slider_y + 24,
     );
     flyout
         .button_rects

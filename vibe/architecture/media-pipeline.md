@@ -18,22 +18,15 @@
 
 **PC:**
 ```
-frames → [Opus decode] → jitter buffer ──► drift resampler ──► AEC ──► noise gate ──► RNNoise ──► virtual mic
-                         (target: USB 20 ms,  (rubato, ±0.2%     (if aec on)  (if gate_db)  (if ns on)
+frames → [Opus decode] → jitter buffer ──► drift resampler ──► RNNoise ──► virtual mic
+                         (target: USB 20 ms,  (rubato, ±0.2%   (if ns on)
                           Wi-Fi 40 ms, BT      to hold buffer
                           80 ms; adaptive)     at target)
 ```
-- **Order matters:** echo cancellation runs first, on the rawest signal, then noise gate and RNNoise clean what's left.
 - **Latency cap:** if buffered audio exceeds 200 ms (e.g. after a Wi‑Fi stall), the excess is dropped rather than played late.
 - **Drift:** the phone's and PC's clocks run at slightly different speeds. Without correction the buffer slowly grows or empties over long calls. A tiny adaptive resampling ratio keeps the buffer at its target.
 - **Gaps:** silence is written (or Opus PLC on L3/L4) so the virtual mic never stalls.
 
-**Echo cancellation (PC):**
-- Reference = what the PC is playing: WASAPI loopback of the chosen output device (Windows) / the output's monitor source (Linux).
-- Engine: Adaptive cross-correlation delay tracking (0–250 ms acoustic + network window) with matched float amplitude scaling, delay-aligned subtraction, and non-linear residual echo suppression (ducking far-end bleed during single-talk). Always enabled by default in the DSP engine so meeting participants never hear their own voice looping back.
-- If quality testing shows it's not good enough under severe Wi‑Fi jitter, evaluate WebRTC's AEC3 behind the same interface.
-- Works best on USB levels (stable delay). On Wi‑Fi, the jitter buffer's delay is fed to the AEC as its delay hint.
-- Permanently active by default; no user toggle needed in the UI. If the user wears headphones, the loopback detector detects no acoustic correlation and leaves the signal untouched.
 
 ## 13.2 Video
 
@@ -54,6 +47,6 @@ frames → [Opus decode] → jitter buffer ──► drift resampler ──► A
 | | Windows | Linux |
 |---|---|---|
 | Mic | **VB-Cable** (user installs once; cannot be bundled under its license). Mikey writes to "CABLE Input"; apps pick "CABLE Output". | PipeWire/PulseAudio: `module-null-sink` (`mikey_sink`) + `module-remap-source` → apps see **"Mikey Microphone"** as a real input, not a "Monitor of…". Created on start, removed on quit. |
-| Camera | **softcam** DirectShow filter (MIT), registered once by the installer. Works in Zoom, Teams, Meet (Chrome/Edge), OBS, Discord. Not visible to the built-in Windows Camera app. Later (Phase 5): Media Foundation virtual camera on Windows 11 for universal support. | **v4l2loopback** kernel module, loaded with `exclusive_caps=1 card_label="Mikey Camera"` (required for Chrome/WebRTC to see it). Installer adds `/etc/modules-load.d` + `modprobe.d` entries. Secure Boot systems need the DKMS module signed — documented. |
+| Camera | **softcam** DirectShow filter (MIT), registered as **"Mikey Cam"**. Works in Zoom, Teams, Meet (Chrome/Edge), OBS, Discord. Not visible to the built-in Windows Camera app. Later (Phase 5): Media Foundation virtual camera on Windows 11 for universal support. | **v4l2loopback** kernel module, loaded with `exclusive_caps=1 card_label="Mikey Cam"` (required for Chrome/WebRTC to see it). Installer adds `/etc/modules-load.d` + `modprobe.d` entries. Secure Boot systems need the DKMS module signed — documented. |
 
 The tray flyout's audio and camera cards show Ready ✓ / Install… for each virtual device, and the phone's WELCOME `pc_caps` tells the phone whether the camera can be used at all.
