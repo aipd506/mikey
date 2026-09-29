@@ -2,6 +2,12 @@
 name = "mikey"
 version = "0.1.0"
 edition = "2021"
+description = "Turn your phone into a microphone and webcam for your PC over USB, Wi-Fi, or Bluetooth"
+license = "MIT"
+repository = "https://github.com/diveshpatil9104/mikey"
+readme = "../README.md"
+keywords = ["webcam", "microphone", "streaming", "virtual-camera", "audio"]
+categories = ["multimedia::audio", "multimedia::video"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }

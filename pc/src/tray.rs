@@ -30,7 +30,7 @@ impl TrayApp {
         // No OS popup context menu: clicking tray icon directly toggles custom Mikey Flyout
         let tray = loop {
             match TrayIconBuilder::new()
-                .with_tooltip("Mikey — Phone Mic & Webcam")
+                .with_tooltip("Mikey - Phone Mic & Webcam")
                 .with_icon(icon_grey.clone())
                 .build()
             {
@@ -62,15 +62,15 @@ impl TrayApp {
             .filter(|_| self.session_manager.is_active());
 
         let (icon, tooltip) = if has_pending {
-            (&self.icon_amber, "Mikey — Waiting for approval".to_string())
+            (&self.icon_amber, "Mikey - Waiting for approval".to_string())
         } else if let Some(session) = session {
             let tip = format!(
-                "Mikey — {} streaming via L{}",
+                "Mikey - {} streaming via L{}",
                 session.device_name, session.current_level
             );
             (&self.icon_green, tip)
         } else {
-            (&self.icon_grey, "Mikey — Idle".to_string())
+            (&self.icon_grey, "Mikey - Idle".to_string())
         };
         if tooltip != self.tooltip {
             let _ = self.tray.set_icon(Some(icon.clone()));

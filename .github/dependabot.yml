@@ -1,0 +1,32 @@
+version: 2
+
+updates:
+  - package-ecosystem: "cargo"
+    directory: "/pc"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "pc"
+    commit-message:
+      prefix: "chore(pc)"
+
+  - package-ecosystem: "gradle"
+    directory: "/android"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "android"
+    commit-message:
+      prefix: "chore(android)"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: "chore(ci)"

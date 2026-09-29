@@ -32,7 +32,7 @@ android {
         compose = true
     }
 
-    // libopus and the JNI wrapper. Needs CMake and the submodule (see vibe/skills/build-and-run-android.md).
+    // libopus and the JNI wrapper. Needs CMake and the submodule (see docs/DEVELOPER_PLAYBOOKS_AND_SKILLS.md).
     externalNativeBuild {
         cmake {
             path = file("src/main/cpp/CMakeLists.txt")

@@ -1,6 +1,6 @@
 package com.mikey.protocol
 
-/** Frame type byte (vibe/architecture/wire-protocol.md). Only the types the app uses so far. */
+/** Frame type byte (docs/WIRE_PROTOCOL.md). Only the types the app uses so far. */
 object FrameType {
     const val HELLO = 0x00
     const val AUDIO = 0x01

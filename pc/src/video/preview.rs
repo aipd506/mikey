@@ -7,7 +7,7 @@ use std::time::Duration;
 
 pub type FrameSlot = Option<Arc<DecodedFrame>>;
 
-const TITLE: &str = "Mikey — Camera Preview";
+const TITLE: &str = "Mikey - Camera Preview";
 
 pub struct PreviewWindow {
     visible: Arc<AtomicBool>,

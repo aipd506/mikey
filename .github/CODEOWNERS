@@ -1,0 +1,17 @@
+# Default owners for the entire repository.
+# These users will be requested for review on every PR unless
+# a more specific match below overrides them.
+
+*                          @diveshpatil9104
+
+# Android app
+android/                   @diveshpatil9104
+
+# PC tray app
+pc/                        @diveshpatil9104
+
+# Documentation and specs
+docs/                      @diveshpatil9104
+
+# CI and community governance
+.github/                   @diveshpatil9104
