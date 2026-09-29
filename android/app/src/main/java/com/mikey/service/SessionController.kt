@@ -358,7 +358,13 @@ class SessionController(context: Context, private val listener: Listener) {
                     null
                 }
                 if (frame != null) sender.send(frame, wire.output)
-                // Audio first, then at most one picture per turn, so a big picture never holds audio back for long.
+                // Then the audio that piled up while the last picture went out. One frame a turn falls
+                // behind for good once a picture takes longer to send than a frame lasts (10 ms).
+                while (true) {
+                    val waiting = frames.poll() ?: break
+                    sender.send(waiting, wire.output)
+                }
+                // At most one picture per turn, so a big picture never holds audio back for long.
                 val picture = try {
                     if (micOn) videoFrames.poll() else videoFrames.poll(POLL_MS, TimeUnit.MILLISECONDS)
                 } catch (e: InterruptedException) {

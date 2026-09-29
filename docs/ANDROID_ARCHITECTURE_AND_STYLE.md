@@ -72,7 +72,8 @@ Audio capture must never experience garbage collection pauses or thread preempti
 
 ### 3.2 Non-Blocking Capture Handoff
 Capture threads (`mikey-capture`, `mikey-video`) must **never block on network sockets or synchronization locks**:
-- Capture callbacks write into bounded queues (`ArrayBlockingQueue<AudioFrame>(8)` and `ArrayBlockingQueue<VideoFrame>(2)`).
+- Capture callbacks write into bounded queues (`ArrayBlockingQueue<AudioFrame>(20)` and `ArrayBlockingQueue<VideoFrame>(2)`).
+- Each turn the sender sends every waiting audio frame, then at most one picture, so a slow link delays pictures, never voice. Sending one audio frame a turn fell behind for good whenever a picture took longer to send than a frame lasts (10 ms).
 - If network congestion prevents the sender thread from draining the queue in time, new frames drop older frames immediately (`offerDroppingOldest`).
 
 ---
