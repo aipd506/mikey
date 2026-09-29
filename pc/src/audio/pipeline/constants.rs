@@ -9,6 +9,10 @@ pub const BT_TARGET_MS: usize = 80; // 3840 samples
 pub const MAX_ADAPTIVE_TARGET_MS: usize = 120; // 5760 samples max
 
 pub const MAX_DRIFT_RATIO: f32 = 0.002; // ±0.2% max drift correction
+pub const DRIFT_GAIN: f32 = 0.004; // speed change per unit of depth error; max at half a target off
+pub const DEPTH_AVG_FRAMES: f32 = 24_000.0; // ~0.5 s average of buffer depth for drift correction
+pub const FADE_FRAMES: usize = 120; // 2.5 ms fade into and out of silence, so gaps don't click
+pub const SOFT_CLIP_KNEE: f32 = 0.95; // peaks above this are rounded off, not cut flat
 
 // Auto loudness normalization: targets unity gain (1.0×) to eliminate voice ducking and pumping
 pub const TARGET_RMS_I16: f32 = 4126.0; // 32767 × 10^(−18/20)

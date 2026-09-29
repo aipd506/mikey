@@ -38,8 +38,9 @@ The Mikey audio subsystem is architected for **broadcast-grade speech fidelity, 
                                 │
                                 ▼
                        [Drift Resampler] (pc/src/audio/pipeline/resample.rs)
-                          - Linear interpolation phase accumulator
-                          - Continuous crystal clock drift clamp (±0.2%)
+                          - 4-point cubic interpolation phase accumulator
+                          - Clock drift correction on the ~0.5 s average depth, clamped (±0.2%)
+                          - 2.5 ms fades into and out of gaps; soft clip above 0.95 full scale
                                 │
                                 ▼
                        [AudioNormalizer] (pc/src/audio/pipeline/normalizer.rs)
@@ -49,7 +50,7 @@ The Mikey audio subsystem is architected for **broadcast-grade speech fidelity, 
                                 ▼
                        [AudioDsp / RNNoise] (pc/src/audio/dsp/denoise.rs)
                           - Neural network RNN speech/noise classification
-                          - Noise gate & user-adjustable strength mixing
+                          - User-adjustable strength, mixed with the raw audio delayed 10 ms to line up
                                 │
                                 ▼
                        [WASAPI Virtual Sink] (pc/src/audio/sink/)
@@ -112,11 +113,14 @@ The PC `JitterBuffer` absorbs packet arrival variance across unpredictable wirel
 ### 3.2 Clock Drift Compensation (`pc/src/audio/pipeline/resample.rs`)
 Because the phone’s hardware audio clock and the PC’s DAC audio clock are driven by separate physical quartz oscillators, their rates inevitably drift apart by up to ±50 ppm.
 
-Mikey corrects drift using **continuous linear interpolation**:
-- **Phase Accumulator**: Maintains a fractional sample offset $\text{phase} \in [0.0, 1.0)$.
-- **Drift Ratio Clamp**:
-  $$\text{Ratio} = 1.0 + \text{clamp}\left(\frac{\text{QueueDepth} - \text{TargetDepth}}{\text{AdjustmentScale}}, -0.002, +0.002\right)$$
-- The ±0.2% limit (`MAX_DRIFT_RATIO = 0.002`) guarantees that any pitch adjustment is completely imperceptible to human speech perception while providing sufficient authority to eliminate buffer underruns.
+Mikey corrects drift by resampling continuously with **4-point cubic (Catmull-Rom) interpolation**:
+- **Phase Accumulator**: Maintains a fractional sample offset $\text{phase} \in [0.0, 1.0)$, interpolating between the sample before `buf[0]` and `buf[2]`. Straight-line interpolation dulls the highs by up to 3 dB at 12 kHz depending on the phase, so a moving phase is heard as a flutter on "s" and "t" sounds; the cubic curve holds it to about 1 dB.
+- **Averaged Depth**: The queue depth jumps by a whole packet as each one lands, so drift correction steers by its average over about half a second (`DEPTH_AVG_FRAMES = 24000`), not the depth at the moment of the callback. Steering by the raw depth slammed the speed between its limits in most callbacks.
+- **Drift Ratio Clamp** (`DRIFT_GAIN = 0.004`):
+  $$\text{Ratio} = 1.0 + \text{clamp}\left(0.004 \times \frac{\text{AverageDepth} - \text{TargetDepth}}{\text{TargetDepth}}, -0.002, +0.002\right)$$
+- The ±0.2% limit (`MAX_DRIFT_RATIO = 0.002`) keeps any pitch change imperceptible in speech while still absorbing clock drift.
+- **Gaps**: When the buffer runs dry mid-callback, the last 2.5 ms before it fade out (`FADE_FRAMES = 120`), and playback fades back in over 2.5 ms once the buffer refills to its target, so a gap is silent instead of clicking.
+- **Soft Clip**: Output above 0.95 full scale (`SOFT_CLIP_KNEE`) bends smoothly toward full scale instead of being cut flat, which crackles.
 
 ### 3.3 Auto Loudness Normalization (`pc/src/audio/pipeline/normalizer.rs`)
 - **Unity Gain Delivery**: Maintains constant unity gain (`MIN_AUTO_GAIN = 1.0`, `MAX_AUTO_GAIN = 1.0`, multiplier `1.0×`) across all vocal inputs. This completely eliminates dynamic voice ducking, compressor pumping, and background ambient noise surges during speech pauses.
@@ -125,7 +129,7 @@ Mikey corrects drift using **continuous linear interpolation**:
 ### 3.4 Neural Speech Denoising (`pc/src/audio/dsp/denoise.rs`)
 - **Model**: Embedded **RNNoise** recurrent neural network model trained on voice and background noise spectra.
 - **Frequency Analysis**: Operates on 10 ms frequency bark bands, calculating speech presence probabilities and attenuating non-stationary noise (keyboards, HVAC, traffic).
-- **Strength Slider**: The PC flyout UI exposes an adjustable 0–100% noise reduction strength slider (`ns_strength`). The output linearly crossfades between the clean dry signal and the neural denoised signal.
+- **Strength Slider**: The PC flyout UI exposes an adjustable 0–100% noise reduction strength slider (`ns_strength`, 80% by default from the phone). The output linearly crossfades between the raw signal and the denoised signal. RNNoise's output is one frame (10 ms) late, so the raw side is the previous frame: mixing in the current one instead cancels parts of the voice (comb filtering, about 4 dB at 80% and over 20 dB at 50%) and sounds metallic.
 
 ---
 
@@ -133,5 +137,5 @@ Mikey corrects drift using **continuous linear interpolation**:
 
 In `pc/src/audio/sink/`:
 - **WASAPI Integration**: Operates in Windows Audio Session API shared event-driven mode (`AUDCLNT_STREAMFLAGS_EVENTCALLBACK`).
-- **Real-Time Guarantee**: The WASAPI render callback executes at high real-time priority. It retrieves audio from `JitterBuffer` via non-blocking try-locks. If contention occurs or the buffer runs dry, digital silence (zeroes) is emitted immediately to prevent audio stutter or crackle.
+- **Real-Time Guarantee**: The WASAPI render callback executes at high real-time priority. It retrieves audio from `JitterBuffer` via non-blocking try-locks. If the buffer runs dry, playback fades out into silence and fades back in after refilling (see 3.2), so gaps don't click.
 - **Virtual Audio Cable Compatibility**: Seamlessly links to VB-Audio Cable or dedicated virtual driver endpoints, exposing the stream as a standard microphone in Windows Sound Settings.

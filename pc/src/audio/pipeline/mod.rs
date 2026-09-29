@@ -9,7 +9,7 @@ pub use constants::*;
 
 use crate::audio::dsp::AudioDsp;
 use normalizer::AudioNormalizer;
-use resample::JitterStats;
+use resample::{JitterStats, Playout};
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
 use std::sync::Mutex;
@@ -17,7 +17,6 @@ use std::time::Instant;
 
 pub struct JitterBuffer {
     buffer: Mutex<VecDeque<i16>>,
-    started: Mutex<bool>,
     base_target_samples: AtomicUsize,
     adaptive_target_samples: AtomicUsize,
     peak_level: AtomicUsize,
@@ -26,7 +25,7 @@ pub struct JitterBuffer {
     ns_enabled: AtomicBool,
     dsp: Mutex<AudioDsp>,
     stats: Mutex<JitterStats>,
-    resample_phase: Mutex<f32>,
+    playout: Mutex<Playout>,
     output_rate: AtomicU32,
 }
 
@@ -35,7 +34,6 @@ impl JitterBuffer {
         let base_target = USB_TARGET_MS * SAMPLES_PER_MS;
         Self {
             buffer: Mutex::new(VecDeque::with_capacity(MAX_SAMPLES)),
-            started: Mutex::new(false),
             base_target_samples: AtomicUsize::new(base_target),
             adaptive_target_samples: AtomicUsize::new(base_target),
             peak_level: AtomicUsize::new(0),
@@ -44,7 +42,7 @@ impl JitterBuffer {
             ns_enabled: AtomicBool::new(true),
             dsp: Mutex::new(AudioDsp::new()),
             stats: Mutex::new(JitterStats::new()),
-            resample_phase: Mutex::new(0.0),
+            playout: Mutex::new(Playout::new()),
             output_rate: AtomicU32::new(SAMPLE_RATE),
         }
     }
@@ -124,11 +122,8 @@ impl JitterBuffer {
         if let Ok(mut buf) = self.buffer.lock() {
             buf.clear();
         }
-        if let Ok(mut started) = self.started.lock() {
-            *started = false;
-        }
-        if let Ok(mut phase) = self.resample_phase.lock() {
-            *phase = 0.0;
+        if let Ok(mut playout) = self.playout.lock() {
+            *playout = Playout::new();
         }
         self.normalizer.reset();
         if let Ok(mut dsp) = self.dsp.lock() {

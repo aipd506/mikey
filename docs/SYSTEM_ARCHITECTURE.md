@@ -133,7 +133,7 @@ Mikey is a distributed, real-time media streaming system consisting of an Androi
        │
 [mikey-session] (Dedicated Thread)
        │  SessionController loop: connects wire, performs handshake
-       │  Sender loop: drains frames & videoFrames, writes wire headers, flushes TCP
+       │  Sender loop: all waiting audio frames, then at most one picture, per turn; flushes TCP
        │  5-second periodic heartbeat sender
        │
 [mikey-upgrade] (Dedicated Thread)
