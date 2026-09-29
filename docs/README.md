@@ -55,7 +55,7 @@ The project is built on strict **lean engineering principles**: zero accounts, z
 | **Audio Sample Rate** | `48,000 Hz` | `SAMPLE_RATE` (`AudioCapture.kt` / `constants.rs`) | Broadcast studio standard audio rate |
 | **Audio Frame Duration** | `10 ms` | `FRAME_SAMPLES = 480` | 480 samples = 960 bytes per raw PCM frame |
 | **Hard Latency Drop Cap** | `200 ms` | `MAX_LATENCY_MS` (`constants.rs`) | Samples exceeding 200 ms dropped to prevent creeping latency |
-| **Clock Drift Ratio Limit** | `±0.2%` | `MAX_DRIFT_RATIO = 0.002` | Linear resampling clamp aligning crystal oscillators |
+| **Clock Drift Ratio Limit** | `±0.2%` | `MAX_DRIFT_RATIO = 0.002` | Cubic resampling clamp aligning crystal oscillators, steered by the ~0.5 s average depth |
 | **Speech Target Loudness** | `1.0× (Unity)` | `MIN_AUTO_GAIN = 1.0, MAX_AUTO_GAIN = 1.0` | Transparent vocal delivery without voice ducking |
 | **Heartbeat Interval** | `5,000 ms` | `HEARTBEAT_MS` (`SessionController.kt`) | Bidirectional link liveness ping/pong |
 | **Socket Timeout** | `15,000 ms`| `LINK_TIMEOUT_MS` / `SOCKET_TIMEOUT` | Three missed heartbeats trigger disconnect |

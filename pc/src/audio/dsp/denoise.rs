@@ -4,6 +4,10 @@ pub struct AudioDsp {
     denoise: Box<DenoiseState<'static>>,
     scratch_in: [f32; DenoiseState::FRAME_SIZE],
     scratch_out: [f32; DenoiseState::FRAME_SIZE],
+    /// The frame before the current one. RNNoise's output is one frame (10 ms) late, so this is
+    /// the raw audio that lines up with it. Mixing in the current frame instead cancels parts of
+    /// the voice and makes it sound metallic.
+    dry: [f32; DenoiseState::FRAME_SIZE],
 }
 
 impl AudioDsp {
@@ -12,6 +16,7 @@ impl AudioDsp {
             denoise: DenoiseState::new(),
             scratch_in: [0.0; DenoiseState::FRAME_SIZE],
             scratch_out: [0.0; DenoiseState::FRAME_SIZE],
+            dry: [0.0; DenoiseState::FRAME_SIZE],
         }
     }
 
@@ -38,19 +43,21 @@ impl AudioDsp {
                 .denoise
                 .process_frame(&mut self.scratch_out, &self.scratch_in);
 
-            for (dest, (&raw, &denoised)) in chunk
+            for (dest, (&dry, &denoised)) in chunk
                 .iter_mut()
-                .zip(self.scratch_in.iter().zip(self.scratch_out.iter()))
+                .zip(self.dry.iter().zip(self.scratch_out.iter()))
             {
-                let blended = raw * (1.0 - strength_ratio) + denoised * strength_ratio;
+                let blended = dry * (1.0 - strength_ratio) + denoised * strength_ratio;
                 *dest = blended.clamp(-32768.0, 32767.0) as i16;
             }
+            self.dry = self.scratch_in;
         }
     }
 
     pub fn reset(&mut self) {
         self.scratch_in.fill(0.0);
         self.scratch_out.fill(0.0);
+        self.dry.fill(0.0);
     }
 }
 
