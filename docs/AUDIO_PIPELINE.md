@@ -11,8 +11,8 @@ The Mikey audio subsystem is architected for **broadcast-grade speech fidelity, 
              │
              ▼
 [AudioCapture.kt] ── 48 kHz mono 16-bit PCM (10 ms frames = 480 samples = 960 bytes)
-    ├── Primary: AAudio NDK (AAUDIO_PERFORMANCE_MODE_LOW_LATENCY)
-    └── Fallback: AudioRecord (MediaRecorder.AudioSource.UNPROCESSED)
+    ├── Primary: AAudio NDK (AAUDIO_PERFORMANCE_MODE_LOW_LATENCY; UNPROCESSED with VOICE_RECOGNITION fallback)
+    └── Fallback: AudioRecord (MediaRecorder.AudioSource.UNPROCESSED or VOICE_RECOGNITION)
              │
              ├──► [L1/L2 USB]: Transmitted as raw PCM (0x01 AUDIO, codec 0x01)
              │
@@ -43,8 +43,8 @@ The Mikey audio subsystem is architected for **broadcast-grade speech fidelity, 
                                 │
                                 ▼
                        [AudioNormalizer] (pc/src/audio/pipeline/normalizer.rs)
-                          - Speech loudness leveling (-18 dBFS RMS target)
-                          - Noise floor hold (avoids background breathing)
+                          - Transparent unity gain delivery (1.0×, zero ducking)
+                          - Real-time vocal RMS tracking and speech headroom safety
                                 │
                                 ▼
                        [AudioDsp / RNNoise] (pc/src/audio/dsp/denoise.rs)
@@ -66,9 +66,11 @@ The Mikey audio subsystem is architected for **broadcast-grade speech fidelity, 
 - **Native AAudio Engine (`app/src/main/cpp/aaudio_jni.c`)**:
   - Uses `AAudioStreamBuilder_setPerformanceMode(builder, AAUDIO_PERFORMANCE_MODE_LOW_LATENCY)`.
   - Configured with `AAUDIO_SHARING_MODE_SHARED` (or `EXCLUSIVE` where supported by kernel drivers) to achieve direct DMA buffer reads from the audio DSP.
+  - Tries `AAUDIO_INPUT_PRESET_UNPROCESSED` on Android 9+, falling back seamlessly to `AAUDIO_INPUT_PRESET_VOICE_RECOGNITION` if unsupported by device vendor HAL.
 - **AudioRecord Fallback**:
   - Automatically activates if AAudio fails or is preempted by an incoming phone call.
-  - Queries `AudioManager.PROPERTY_SUPPORT_AUDIO_SOURCE_UNPROCESSED`. If true, sets `MediaRecorder.AudioSource.UNPROCESSED`. Otherwise, falls back to `MediaRecorder.AudioSource.MIC`.
+  - Queries `AudioManager.PROPERTY_SUPPORT_AUDIO_SOURCE_UNPROCESSED`. If true, sets `MediaRecorder.AudioSource.UNPROCESSED`. Otherwise, falls back to `MediaRecorder.AudioSource.VOICE_RECOGNITION` (which Android CDD mandates disables OEM AGC and compression, unlike `AudioSource.MIC`).
+  - **System AGC Disable**: If `AutomaticGainControl.isAvailable()`, the capture loop explicitly creates and disables system AGC on the recorder's audio session ID to eliminate hardware voice ducking.
   - **The Voice Communication Rule**: Under no circumstances does Mikey use `AudioSource.VOICE_COMMUNICATION`. Android’s native voice processing injects aggressive, non-linear hardware AGC and echo cancellation that fundamentally breaks PC-side neural noise filters.
 - **Thread Priority**: The capture loop runs inside a dedicated OS thread (`mikey-capture`) pinned to `Process.THREAD_PRIORITY_URGENT_AUDIO`.
 
@@ -117,11 +119,8 @@ Mikey corrects drift using **continuous linear interpolation**:
 - The ±0.2% limit (`MAX_DRIFT_RATIO = 0.002`) guarantees that any pitch adjustment is completely imperceptible to human speech perception while providing sufficient authority to eliminate buffer underruns.
 
 ### 3.3 Auto Loudness Normalization (`pc/src/audio/pipeline/normalizer.rs`)
-- **Target RMS**: Regulates vocal output to **-18 dBFS RMS** (`TARGET_RMS_I16 = 4126.0`), adhering to international broadcast speech delivery standards.
-- **Asymmetric Dynamics**:
-  - `GAIN_ATTACK_ALPHA = 0.05`: Quick gain upward adjustments when a user speaks quietly.
-  - `GAIN_RELEASE_ALPHA = 0.01`: Slow, gradual release to prevent audible pumping artifacts.
-- **Noise Floor Hold**: If the signal RMS falls below `NOISE_FLOOR_I16 = 100.0`, the speaker is silent. The normalizer freezes its current gain multiplier, preventing room background noise from surging during speech pauses.
+- **Unity Gain Delivery**: Maintains constant unity gain (`MIN_AUTO_GAIN = 1.0`, `MAX_AUTO_GAIN = 1.0`, multiplier `1.0×`) across all vocal inputs. This completely eliminates dynamic voice ducking, compressor pumping, and background ambient noise surges during speech pauses.
+- **Vocal Headroom & Monitoring**: Tracks continuous vocal RMS against broadcast speech standards (`TARGET_RMS_I16 = 4126.0`, -18 dBFS) for flyout UI level metering while preserving linear input dynamics for meeting applications.
 
 ### 3.4 Neural Speech Denoising (`pc/src/audio/dsp/denoise.rs`)
 - **Model**: Embedded **RNNoise** recurrent neural network model trained on voice and background noise spectra.

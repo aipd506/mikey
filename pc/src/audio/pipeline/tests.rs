@@ -33,7 +33,7 @@ fn test_jitter_buffer_prebuffering_and_levels() {
 }
 
 #[test]
-fn test_auto_normalization_gain_adapts() {
+fn test_auto_normalization_unity_gain() {
     let jb = JitterBuffer::new();
     assert!((jb.get_auto_gain() - 1.0).abs() < 0.01);
 
@@ -48,7 +48,7 @@ fn test_auto_normalization_gain_adapts() {
         jb.push_samples(&quiet_tone);
     }
     let gain = jb.get_auto_gain();
-    assert!(gain > 1.0, "gain should increase for quiet input: {}", gain);
+    assert_eq!(gain, 1.0, "gain must stay at unity to prevent ducking");
 }
 
 #[test]

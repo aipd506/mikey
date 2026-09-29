@@ -15,11 +15,18 @@ JNIEXPORT jlong JNICALL Java_com_mikey_media_AAudioInput_nativeOpen(JNIEnv *env,
     AAudioStreamBuilder_setChannelCount(builder, 1);
     AAudioStreamBuilder_setFormat(builder, AAUDIO_FORMAT_PCM_I16);
     if (__builtin_available(android 28, *)) {
-        // Raw capture: no phone-side noise suppression or gain. The PC's echo canceller wants the untouched signal.
+        // Raw capture: no phone-side noise suppression or gain.
         AAudioStreamBuilder_setInputPreset(builder, AAUDIO_INPUT_PRESET_UNPROCESSED);
     }
     AAudioStream *stream = NULL;
     aaudio_result_t result = AAudioStreamBuilder_openStream(builder, &stream);
+    if (result != AAUDIO_OK) {
+        if (__builtin_available(android 26, *)) {
+            // Fallback to VOICE_RECOGNITION if UNPROCESSED is unsupported by device HAL (disables AGC/ducking).
+            AAudioStreamBuilder_setInputPreset(builder, AAUDIO_INPUT_PRESET_VOICE_RECOGNITION);
+            result = AAudioStreamBuilder_openStream(builder, &stream);
+        }
+    }
     AAudioStreamBuilder_delete(builder);
     if (result != AAUDIO_OK) return 0;
     if (AAudioStream_getSampleRate(stream) != sampleRate || AAudioStream_getFormat(stream) != AAUDIO_FORMAT_PCM_I16 ||

@@ -27,7 +27,7 @@ The project is built on strict **lean engineering principles**: zero accounts, z
 | **[ARCHITECTURE.md](./ARCHITECTURE.md)** | Quick contributor summary of system topology, connection levels, and threading. | `docs/ARCHITECTURE.md` |
 | **[TRANSPORTS_AND_NETWORKING.md](./TRANSPORTS_AND_NETWORKING.md)** | The 4 connection levels, make-before-break upgrades, UDP discovery beacon (`:7654`), subnet pinning, and anti-flap timers. | `TransportManager.kt`, `Discovery.kt`, `adb.rs`, `beacon.rs`, `tcp/` |
 | **[WIRE_PROTOCOL.md](./WIRE_PROTOCOL.md)** | Complete binary wire framing, packet opcodes (`0x00`–`0x12`), 14-byte `MediaHeader`, JSON control schemas, and state machine. | `protocol/Frame.kt`, `protocol/Messages.kt`, `pc/src/protocol/` |
-| **[AUDIO_PIPELINE.md](./AUDIO_PIPELINE.md)** | AAudio/AudioRecord capture, Opus JNI encoder, adaptive jitter buffer, drift resampler (±0.2%), auto-normalizer (-18 dBFS), and RNNoise DSP. | `AudioCapture.kt`, `OpusEncoder.kt`, `audio/pipeline/`, `audio/dsp/` |
+| **[AUDIO_PIPELINE.md](./AUDIO_PIPELINE.md)** | AAudio/AudioRecord capture, Opus JNI encoder, adaptive jitter buffer, drift resampler (±0.2%), auto-normalizer (unity gain vocal passthrough), and RNNoise DSP. | `AudioCapture.kt`, `OpusEncoder.kt`, `audio/pipeline/`, `audio/dsp/` |
 | **[VIDEO_PIPELINE.md](./VIDEO_PIPELINE.md)** | CameraX capture (`KEEP_ONLY_LATEST`), 20° gravity orientation hysteresis, NV21 conversion, adaptive JPEG, DirectShow softcam, and preview. | `VideoCapture.kt`, `Nv21.kt`, `video/pipeline.rs`, `video/vcam/` |
 | **[SESSIONS_AND_TRUST.md](./SESSIONS_AND_TRUST.md)** | Trust-on-first-use (TOFU), 32-byte pairing tokens, ask-before-join modals, 30s session hold, and single-device policy. | `SessionController.kt`, `session/mod.rs`, `session/handshake.rs` |
 
@@ -56,7 +56,7 @@ The project is built on strict **lean engineering principles**: zero accounts, z
 | **Audio Frame Duration** | `10 ms` | `FRAME_SAMPLES = 480` | 480 samples = 960 bytes per raw PCM frame |
 | **Hard Latency Drop Cap** | `200 ms` | `MAX_LATENCY_MS` (`constants.rs`) | Samples exceeding 200 ms dropped to prevent creeping latency |
 | **Clock Drift Ratio Limit** | `±0.2%` | `MAX_DRIFT_RATIO = 0.002` | Linear resampling clamp aligning crystal oscillators |
-| **Speech Target Loudness** | `-18 dBFS` | `TARGET_RMS_I16 = 4126.0` | International broadcast vocal normalization |
+| **Speech Target Loudness** | `1.0× (Unity)` | `MIN_AUTO_GAIN = 1.0, MAX_AUTO_GAIN = 1.0` | Transparent vocal delivery without voice ducking |
 | **Heartbeat Interval** | `5,000 ms` | `HEARTBEAT_MS` (`SessionController.kt`) | Bidirectional link liveness ping/pong |
 | **Socket Timeout** | `15,000 ms`| `LINK_TIMEOUT_MS` / `SOCKET_TIMEOUT` | Three missed heartbeats trigger disconnect |
 | **Session Hold Duration** | `30,000 ms`| `SESSION_HOLD_DURATION` (`types.rs`) | Virtual device handles held during transport switches |

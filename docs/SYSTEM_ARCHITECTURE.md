@@ -60,7 +60,7 @@ Mikey is a distributed, real-time media streaming system consisting of an Androi
 │    │    ├── Exponential Moving Average (EMA) jitter variance tracking                                  │
 │    │    └── Hard Latency Drop Cap (MAX_LATENCY_MS = 200ms)                                             │
 │    ├── Drift Resampler (resample.rs): Linear interpolation phase accumulator (clamped to ±0.2%)        │
-│    ├── Loudness Normalizer (normalizer.rs): Broadcast speech standard (-18 dBFS RMS, ceiling +20 dB)   │
+│    ├── Loudness Normalizer (normalizer.rs): Unity gain speech delivery (1.0×, eliminates ducking/pumping)│
 │    ├── Audio DSP (denoise.rs): RNNoise neural network model + noise gate with strength control        │
 │    └── Virtual Audio Sink (sink/): WASAPI event-driven shared stream feeding VB-Audio Cable            │
 │                                                                                                        │
@@ -102,7 +102,7 @@ Mikey is a distributed, real-time media streaming system consisting of an Androi
 | **`main`** | [`main.rs`](file:///e:/Programs/mikey/pc/src/main.rs) | Detaches console, enforces single-instance mutex, coordinates pipeline threads, and starts network listeners. |
 | **`SessionManager`** | [`session/mod.rs`](file:///e:/Programs/mikey/pc/src/session/mod.rs) | Manages authentication, TOFU pairing prompts, session hold grace periods, and control message routing. |
 | **`JitterBuffer`** | [`audio/pipeline/mod.rs`](file:///e:/Programs/mikey/pc/src/audio/pipeline/mod.rs) | Thread-safe sample ring buffer with arrival timestamp tracking, adaptive depth calculation, and latency caps. |
-| **`AudioNormalizer`**| [`audio/pipeline/normalizer.rs`](file:///e:/Programs/mikey/pc/src/audio/pipeline/normalizer.rs) | Automatic speech leveling targeting -18 dBFS RMS with noise floor detection and asymmetric attack/release. |
+| **`AudioNormalizer`**| [`audio/pipeline/normalizer.rs`](file:///e:/Programs/mikey/pc/src/audio/pipeline/normalizer.rs) | Unity gain speech level monitoring (1.0×) preventing voice ducking and background pumping. |
 | **`AudioDsp`** | [`audio/dsp/denoise.rs`](file:///e:/Programs/mikey/pc/src/audio/dsp/denoise.rs) | Neural network speech noise suppression (RNNoise) and adjustable strength mixing. |
 | **`VideoPipeline`** | [`video/pipeline.rs`](file:///e:/Programs/mikey/pc/src/video/pipeline.rs) | Dedicated worker thread decompressing JPEG to BGRA, pushing frames to softcam driver, and updating preview. |
 | **`VirtualCamera`** | [`video/vcam/mod.rs`](file:///e:/Programs/mikey/pc/src/video/vcam/mod.rs) | DirectShow filter registration and shared memory frame delivery for video conferencing apps. |

@@ -58,6 +58,16 @@ class AudioCapture(private val context: Context, private val onFrame: (AudioFram
         }
         Log.i(TAG, "Capturing with AudioRecord")
         try {
+            if (android.media.audiofx.AutomaticGainControl.isAvailable()) {
+                try {
+                    android.media.audiofx.AutomaticGainControl.create(recorder.audioSessionId)?.let { agc ->
+                        agc.enabled = false
+                        agc.release()
+                    }
+                } catch (e: Throwable) {
+                    Log.w(TAG, "Could not disable system AGC", e)
+                }
+            }
             recorder.startRecording()
             capture { pcm -> recorder.read(pcm, 0, FRAME_BYTES).let { if (it < 0) it else it / 2 } }
         } catch (e: IllegalStateException) {
@@ -89,7 +99,8 @@ class AudioCapture(private val context: Context, private val onFrame: (AudioFram
         val unprocessed = context.getSystemService(AudioManager::class.java)
             .getProperty(AudioManager.PROPERTY_SUPPORT_AUDIO_SOURCE_UNPROCESSED) == "true"
         // Never VOICE_COMMUNICATION: its own noise suppression and gain would fight the PC's.
-        return if (unprocessed) MediaRecorder.AudioSource.UNPROCESSED else MediaRecorder.AudioSource.MIC
+        // Fall back to VOICE_RECOGNITION where UNPROCESSED is unsupported to avoid OEM AGC ducking on MIC.
+        return if (unprocessed) MediaRecorder.AudioSource.UNPROCESSED else MediaRecorder.AudioSource.VOICE_RECOGNITION
     }
 
     private companion object {
