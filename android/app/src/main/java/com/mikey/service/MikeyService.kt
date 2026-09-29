@@ -49,14 +49,32 @@ class MikeyService : Service(), SessionController.Listener {
         return START_NOT_STICKY
     }
 
-    /** Applies what should be on. With nothing on, the service ends. */
+    /**
+     * Applies what should be on, and remembers it for "Remember mic/camera state", since the
+     * notification's buttons change it too. With nothing on, the service ends.
+     */
     private fun turn(mic: Boolean, camera: Boolean) {
+        Settings(this).run {
+            lastMicOn = mic
+            lastCameraOn = camera
+        }
         if (!mic && !camera) {
             stopSelf()
             return
         }
-        mutableState.value = mutableState.value.let { it.copy(micOn = mic, camera = it.camera.copy(on = camera)) }
-        foreground()
+        val before = mutableState.value
+        mutableState.value = before.copy(micOn = mic, camera = before.camera.copy(on = camera))
+        // Android lets a notification tap turn the mic or camera on from the background. If a phone
+        // refuses anyway, keep what was on instead of crashing.
+        if (!foreground()) {
+            mutableState.value = before
+            Settings(this).run {
+                lastMicOn = before.micOn
+                lastCameraOn = before.camera.on
+            }
+            if (!(before.micOn || before.camera.on) || !foreground()) stopSelf()
+            return
+        }
         val session = session ?: SessionController(this, this).also {
             session = it
             it.start()
@@ -65,18 +83,28 @@ class MikeyService : Service(), SessionController.Listener {
         session.setCameraOn(camera)
     }
 
-    /** Runs as a foreground service with only the types in use, so Android shows the right indicators. */
-    private fun foreground() {
+    /**
+     * Runs as a foreground service with only the types in use, so Android shows the right
+     * indicators. False if Android won't allow those types right now.
+     */
+    private fun foreground(): Boolean {
         val state = mutableState.value
         val notification = notifier.build(state)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            var types = 0
-            if (state.micOn) types = types or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
-            if (state.camera.on) types = types or ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA
-            startForeground(Notifier.ID, notification, types)
-        } else {
-            startForeground(Notifier.ID, notification)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                var types = 0
+                if (state.micOn) types = types or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                if (state.camera.on) types = types or ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA
+                startForeground(Notifier.ID, notification, types)
+            } else {
+                startForeground(Notifier.ID, notification)
+            }
+        } catch (e: SecurityException) {
+            return false
+        } catch (e: IllegalStateException) {
+            return false
         }
+        return true
     }
 
     // The session calls these from its own threads. Everything runs on the main thread, so it can't race with onDestroy.
@@ -108,7 +136,8 @@ class MikeyService : Service(), SessionController.Listener {
             when {
                 camera.on == state.camera.on -> notifier.show(mutableState.value)
                 !camera.on && !state.micOn -> stopSelf() // The PC turned the camera off, and nothing else is on.
-                else -> foreground() // The camera type comes and goes with the camera.
+                // The camera type comes and goes with the camera. If Android won't add it, the camera stays off.
+                else -> if (!foreground()) session?.setCameraOn(false)
             }
         }
     }
@@ -163,7 +192,10 @@ class MikeyService : Service(), SessionController.Listener {
         /** How loud the mic is, 0 to 1, while it's on. */
         val micLevel: StateFlow<Float> = mutableMicLevel.asStateFlow()
 
-        /** Call only from the app on screen: Android 14+ refuses to start a mic or camera service from the background. */
+        /**
+         * Call only from the app on screen, or through the notification's button: Android 14+
+         * refuses to start a mic or camera service from the background otherwise.
+         */
         fun micOn(context: Context) = startOn(context, ACTION_MIC_ON)
 
         fun cameraOn(context: Context) = startOn(context, ACTION_CAMERA_ON)

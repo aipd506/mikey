@@ -1,22 +1,16 @@
 package com.mikey.ui
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -42,9 +36,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -243,31 +235,6 @@ private fun RoundButton(glyph: ImageVector, circle: Dp, icon: Dp, description: S
     ) {
         Box(Modifier.size(circle).background(Palette.bg, CircleShape).border(1.dp, Palette.hairline, CircleShape), contentAlignment = Alignment.Center) {
             Glyph(glyph, Palette.text, icon)
-        }
-    }
-}
-
-/** The settings sheet: 60% of the screen, over a dark scrim. Closes on the scrim, the handle or Back. */
-@Composable
-private fun Sheet(open: Boolean, onClose: () -> Unit, content: @Composable () -> Unit) {
-    val scrim by animateFloatAsState(if (open) 1f else 0f, tween(140, easing = LinearEasing), label = "scrim")
-    val hidden by animateFloatAsState(if (open) 0f else 1f, tween(180, easing = Standard), label = "sheet")
-    if (scrim > 0f) {
-        Box(Modifier.fillMaxSize().graphicsLayer { alpha = scrim }.background(Palette.scrim).clickable(interactionSource = null, indication = null, onClick = onClose))
-    }
-    if (open || hidden < 1f) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(0.6f)
-                    .graphicsLayer { translationY = size.height * hidden }
-                    .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
-                    .background(Palette.sheet)
-                    // Taps on the sheet itself mustn't reach the scrim underneath.
-                    .pointerInput(Unit) { detectTapGestures { } }
-                    .imePadding(),
-            ) { content() }
         }
     }
 }
