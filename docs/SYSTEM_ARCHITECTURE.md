@@ -68,7 +68,7 @@ Mikey is a distributed, real-time media streaming system consisting of an Androi
 │    ├── latest_jpeg Slot: Condvar-synchronized worker queue enforcing KEEP_ONLY_LATEST                  │
 │    ├── TurboJPEG Decoder: Decompresses JPEG to BGRA byte arrays off the network receiver thread        │
 │    ├── Virtual Camera Driver (vcam/): DirectShow in-process COM filter (softcam.dll) registration      │
-│    ├── Privacy Placeholder: Pushes clean 1280x720 dark card when camera toggles off                    │
+│    ├── Privacy Placeholder: Pushes clean 1920x1080 dark card when camera toggles off                   │
 │    └── Preview Window: Lightweight native Win32 floating preview window                                │
 │                                                                                                        │
 │   User Interface (pc/src/flyout/ & tray.rs):                                                           │

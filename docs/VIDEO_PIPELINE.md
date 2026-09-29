@@ -101,13 +101,14 @@ JPEG compression quality dynamically adapts to runtime conditions:
 
 ### 3.2 Windows DirectShow Virtual Camera (`pc/src/video/vcam/`)
 - **DirectShow Registration (`install.rs`)**: Registers a lightweight DirectShow source filter (`softcam.dll`) in the Windows Registry under `HKCR\CLSID` without requiring system reboots.
-- **Universal Application Support**: Exposes the stream as a standard hardware webcam named *"Mikey Camera"*, compatible with Zoom, Microsoft Teams, Google Meet, Discord, and OBS Studio.
-- **Resolution Scaling & Letterboxing**: Scales decoded frames to match consumer application requests (e.g. 1080p, 720p), adding clean black letterbox bars if aspect ratios differ.
+- **Universal Application Support**: Exposes the stream as a standard hardware webcam named *"Mikey Cam"*, compatible with Zoom, Microsoft Teams, Google Meet, Discord, and OBS Studio.
+- **One Fixed Size (`vcam/mod.rs`)**: Mikey Cam is always 1920×1080 at 30 fps and is created once, when the PC app starts. Chrome, Edge and similar apps remember a camera's sizes from when they last listed cameras, and list a DirectShow camera again only after a real camera is added or removed; softcam only serves the size it was created at. Mikey Cam used to be recreated at the phone's size when the phone connected, so on PCs whose meeting app had opened a built-in camera first, switching to Mikey Cam showed nothing until a camera was toggled in Device Manager.
+- **Scaling & Letterboxing (`DecodedFrame::letterbox_into`)**: Pictures of any other size or shape (720p, 4:3, square, portrait) are scaled to fit with bilinear scaling, with black bars where the shape differs. Each source row is scaled across once and reused, so 720p to 1080p costs about 3 ms a frame.
 
 ### 3.3 Privacy Placeholder Frame
 When the user toggles the camera OFF from either the phone or the PC tray:
 - Mikey **never closes the virtual camera driver**. Closing the driver causes videoconferencing apps to display "Camera Disconnected" errors or freeze video graphs.
-- Instead, `DecodedFrame::placeholder(1280, 720)` pushes a clean, dark neutral placeholder card featuring a calm privacy glyph, preserving the virtual device handle while guaranteeing complete user privacy.
+- Instead, `DecodedFrame::placeholder(1920, 1080)` pushes a clean, dark neutral placeholder card featuring a calm privacy glyph, preserving the virtual device handle while guaranteeing complete user privacy.
 
 ### 3.4 Floating Native Preview Window (`pc/src/video/preview.rs`)
 - Zero-dependency, lightweight Win32 floating window displaying the live camera stream.

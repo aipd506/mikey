@@ -65,10 +65,13 @@ fn test_letterboxing() {
     let rgb = vec![0xFF; src_w * src_h * 3];
     let frame = DecodedFrame::new(src_w, src_h, rgb);
 
-    let letterboxed = frame.letterbox(16, 9);
-    assert_eq!(letterboxed.width, 16);
-    assert_eq!(letterboxed.height, 9);
-    assert_eq!(letterboxed.bgr.len(), 16 * 9 * 3);
+    let mut letterboxed = Vec::new();
+    frame.letterbox_into(16, 9, &mut letterboxed);
+    assert_eq!(letterboxed.len(), 16 * 9 * 3);
+    // 4:3 in 16:9 scales to 12x9 with 2 black columns each side.
+    assert_eq!(letterboxed[..6], [0; 6]);
+    assert_eq!(letterboxed[6..9], [0xFF; 3]);
+    assert_eq!(letterboxed[(9 * 16 - 1) * 3], 0);
 }
 
 #[test]

@@ -11,11 +11,17 @@ use std::sync::{Mutex, OnceLock};
 
 const FPS: f32 = 30.0;
 
-#[derive(Clone, Copy)]
+/// Mikey Cam's only size. Apps like Chrome remember a camera's sizes from when they last listed
+/// cameras, which for a DirectShow camera only happens again after a real camera comes or goes,
+/// and softcam only serves the size it was created at. A camera that changed size showed nothing
+/// in them, so it never changes: every picture is scaled to fit (video-pipeline.md).
+pub const WIDTH: usize = 1920;
+pub const HEIGHT: usize = 1080;
+
 struct Camera {
     ptr: usize,
-    width: usize,
-    height: usize,
+    /// The last picture scaled to WIDTH x HEIGHT, reused so scaling allocates nothing.
+    scaled: Vec<u8>,
 }
 
 /// Thread-safe Virtual Camera manager.
@@ -62,14 +68,9 @@ impl VirtualCamera {
         matches!(self.api.get(), Some(Some(_)))
     }
 
-    /// The neutral frame for when the camera is off (media-pipeline.md), at the size apps already have.
+    /// The neutral frame for when the camera is off (media-pipeline.md).
     pub fn show_off_frame(&self) {
-        let (w, h) = self
-            .camera
-            .lock()
-            .unwrap()
-            .map_or((1280, 720), |c| (c.width, c.height));
-        self.push_frame(&DecodedFrame::placeholder(w, h));
+        self.push_frame(&DecodedFrame::placeholder(WIDTH, HEIGHT));
     }
 
     /// Sends a frame to the virtual camera. softcam paces sends to FPS, so this can block for up
@@ -79,37 +80,26 @@ impl VirtualCamera {
             return;
         };
         let mut guard = self.camera.lock().unwrap();
-        let same_size = |c: &Camera| (c.width, c.height) == (frame.width, frame.height);
-
-        // An app that has the camera open keeps the size it first saw (media-pipeline.md), so a
-        // new size only recreates the camera while nothing is using it.
-        let recreate = match &*guard {
-            Some(c) => !same_size(c) && !unsafe { (api.is_connected)(c.ptr as *mut c_void) },
-            None => true,
-        };
-        if recreate {
-            if let Some(old) = guard.take() {
-                unsafe { (api.delete_camera)(old.ptr as *mut c_void) };
+        if guard.is_none() {
+            let ptr = unsafe { (api.create_camera)(WIDTH as i32, HEIGHT as i32, FPS) };
+            if ptr.is_null() {
+                return;
             }
-            let ptr = unsafe { (api.create_camera)(frame.width as i32, frame.height as i32, FPS) };
-            if !ptr.is_null() {
-                *guard = Some(Camera {
-                    ptr: ptr as usize,
-                    width: frame.width,
-                    height: frame.height,
-                });
-            }
+            *guard = Some(Camera {
+                ptr: ptr as usize,
+                scaled: Vec::new(),
+            });
         }
-
-        let Some(cam) = *guard else {
+        let Some(cam) = guard.as_mut() else {
             return;
         };
+
         let ptr = cam.ptr as *mut c_void;
-        if same_size(&cam) {
+        if (frame.width, frame.height) == (WIDTH, HEIGHT) {
             unsafe { (api.send_frame)(ptr, frame.bgr.as_ptr()) };
         } else {
-            let boxed = frame.letterbox(cam.width, cam.height);
-            unsafe { (api.send_frame)(ptr, boxed.bgr.as_ptr()) };
+            frame.letterbox_into(WIDTH, HEIGHT, &mut cam.scaled);
+            unsafe { (api.send_frame)(ptr, cam.scaled.as_ptr()) };
         }
     }
 }
@@ -121,5 +111,56 @@ impl Drop for VirtualCamera {
                 unsafe { (api.delete_camera)(cam.ptr as *mut c_void) };
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Mutex as StdMutex;
+
+    static CREATED: StdMutex<Vec<(i32, i32)>> = StdMutex::new(Vec::new());
+    static SENT: AtomicUsize = AtomicUsize::new(0);
+    static DELETED: AtomicUsize = AtomicUsize::new(0);
+
+    unsafe extern "C" fn create(width: i32, height: i32, _fps: f32) -> *mut c_void {
+        CREATED.lock().unwrap().push((width, height));
+        std::ptr::dangling_mut::<c_void>()
+    }
+    unsafe extern "C" fn send(_camera: *mut c_void, _frame: *const u8) {
+        SENT.fetch_add(1, Ordering::Relaxed);
+    }
+    unsafe extern "C" fn delete(_camera: *mut c_void) {
+        DELETED.fetch_add(1, Ordering::Relaxed);
+    }
+    unsafe extern "C" fn unused(_camera: *mut c_void) -> bool {
+        false
+    }
+
+    #[test]
+    fn test_camera_keeps_one_size_whatever_the_phone_sends() {
+        // Changing size made Mikey Cam go blank in apps that listed cameras before the change.
+        let cam = VirtualCamera::new();
+        assert!(cam
+            .api
+            .set(Some(SoftcamApi::fake(create, send, delete, unused)))
+            .is_ok());
+
+        cam.show_off_frame();
+        for (w, h) in [
+            (1920, 1080),
+            (1280, 720),
+            (960, 720),
+            (1080, 1080),
+            (720, 1280),
+        ] {
+            cam.push_frame(&DecodedFrame::new(w, h, vec![128; w * h * 3]));
+        }
+        cam.show_off_frame();
+
+        assert_eq!(*CREATED.lock().unwrap(), [(WIDTH as i32, HEIGHT as i32)]);
+        assert_eq!(DELETED.load(Ordering::Relaxed), 0);
+        assert_eq!(SENT.load(Ordering::Relaxed), 7);
     }
 }
