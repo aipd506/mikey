@@ -93,7 +93,7 @@ internal fun blockReason(block: CameraBlock) = when (block) {
     CameraBlock.PC -> R.string.camera_blocked_pc
 }
 
-/** Whether the connected PC can do [cap], e.g. `aec`. While not connected it may, so the setting can be changed ahead. */
+/** Whether the connected PC can do [cap], e.g. `rnnoise`. While not connected it may, so the setting can be changed ahead. */
 internal fun pcCan(state: MikeyState, cap: String) = (state.link as? Link.Live)?.let { cap in it.pcCaps } ?: true
 
 /** The sheet's first line. [text] may take the PC's name and [level]'s name. */
@@ -128,13 +128,6 @@ internal fun levelName(level: Int): Int = when (level) {
 
 /** Dots lit on each side of the 48-dot ring, from the bottom up, for a level of 0 to 1. */
 internal fun litDots(level: Float) = (level.coerceIn(0f, 1f) * 24.99f).roundToInt()
-
-/** The noise gate slider: Off at the far left, then 41 steps from -60 to -20 dB (phone-ux.md). */
-internal const val GATE_STEPS = 41
-
-internal fun gateStep(gateDb: Float?): Int = gateDb?.let { (it + 61).roundToInt().coerceIn(1, GATE_STEPS) } ?: 0
-
-internal fun gateDbAt(step: Int): Float? = if (step <= 0) null else (step - 61).toFloat()
 
 private fun running(state: MikeyState) = state.micOn || state.camera.on
 

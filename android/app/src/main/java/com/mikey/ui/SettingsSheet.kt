@@ -129,16 +129,13 @@ fun SettingsSheet(state: MikeyState, prefs: SettingsView, actions: SheetActions,
     }
 }
 
-/** Noise suppression and echo cancellation run on the PC; greyed out if the connected PC can't do them. */
+/** Noise suppression runs on the PC; greyed out if the connected PC can't do it. */
 @Composable
 private fun AudioTile(state: MikeyState, audio: AudioSettings, setAudio: (AudioSettings) -> Unit) {
     val nsOk = pcCan(state, "rnnoise")
-    val aecOk = pcCan(state, "aec")
     val notHere = stringResource(R.string.not_on_this_pc)
     Tile {
         SwitchRow(stringResource(R.string.noise_suppression), audio.ns, { setAudio(audio.copy(ns = it)) }, enabled = nsOk, subtitle = notHere.takeUnless { nsOk })
-        Hairline()
-        SwitchRow(stringResource(R.string.echo_cancellation), audio.aec, { setAudio(audio.copy(aec = it)) }, enabled = aecOk, subtitle = notHere.takeUnless { aecOk })
     }
 }
 
@@ -159,7 +156,7 @@ private fun AdvancedRow(open: Boolean, onToggle: () -> Unit) {
 @Composable
 private fun Advanced(state: MikeyState, prefs: SettingsView, actions: SheetActions) {
     val audio = prefs.audio
-    val off = stringResource(R.string.gate_off)
+    val off = stringResource(R.string.off)
 
     SectionLabel(stringResource(R.string.section_audio_short))
     Tile {
@@ -179,23 +176,6 @@ private fun Advanced(state: MikeyState, prefs: SettingsView, actions: SheetActio
                 ns = null
             },
             enabled = nsOk,
-        )
-        Hairline()
-        var gate by remember { mutableStateOf<Int?>(null) }
-        val step = gate ?: gateStep(audio.gateDb)
-        SliderRow(
-            stringResource(R.string.gate),
-            if (step == 0) off else stringResource(R.string.gate_value, 61 - step),
-            step / GATE_STEPS.toFloat(),
-            steps = GATE_STEPS,
-            // Capitals for words only: "dB" keeps its case.
-            scale = listOf(off.uppercase(), stringResource(R.string.gate_min), stringResource(R.string.gate_max)),
-            onChange = { gate = (it * GATE_STEPS).roundToInt() },
-            onDone = {
-                gate?.let { actions.setAudio(audio.copy(gateDb = gateDbAt(it))) }
-                gate = null
-            },
-            hollow = step == 0,
         )
         Hairline()
         SwitchRow(stringResource(R.string.lossless), prefs.lossless, actions.setLossless)

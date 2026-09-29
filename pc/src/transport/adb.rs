@@ -159,10 +159,13 @@ pub fn start_adb_watcher(port: u16, running: Arc<AtomicBool>) -> thread::JoinHan
 mod tests {
     use super::*;
 
+    /// CI machines have no adb, so a missing one must come back as NotFound, not as a failure.
     #[test]
     fn test_check_adb() {
-        let ver = check_adb();
-        assert!(ver.is_ok());
+        match check_adb() {
+            Ok(ver) => assert!(ver.contains("Android Debug Bridge"), "{}", ver),
+            Err(e) => assert_eq!(e.kind(), ErrorKind::NotFound, "{}", e),
+        }
     }
 
     #[test]
