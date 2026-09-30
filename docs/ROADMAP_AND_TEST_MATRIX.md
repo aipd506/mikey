@@ -56,12 +56,12 @@ This document tracks Mikey’s five implementation phases, current development s
 - [x] **PC**: Detached native Win32 floating preview window.
 
 ### 2.4 Phase 4 - Audio Quality & DSP (Complete)
-*Goal: Clean, studio-quality speech with background noise suppression and echo reduction.*
+*Goal: Clean, studio-quality speech with background noise suppression and stable low latency.*
 - [x] **Android**: Bidirectional control frame sync (`0x04 CONTROL`) for noise suppression and mute.
 - [x] **Android**: Settings disabled/greyed out when PC companion reports missing capabilities.
 - [x] **PC**: RNNoise neural network speech noise reduction (`nnnoiseless`) with strength slider.
-- [x] **PC**: Dynamic noise gate and automatic speech loudness normalizer (-18 dBFS RMS target).
-- [x] **PC**: SpeexDSP acoustic echo cancellation (AEC) with loopback mixer reference.
+- [x] **PC**: Automatic speech loudness normalizer (-18 dBFS RMS target) and linear drift resampler.
+- [x] **PC**: Streamlined DSP pipeline (SpeexDSP AEC and noise gate retired in #37 in favor of pure RNNoise neural suppression and adaptive jitter buffering).
 - [x] **PC**: Full bidirectional synchronization of audio and video settings across devices.
 
 ### 2.5 Phase 5 - Packaging, Hardening & Release (In Progress)
