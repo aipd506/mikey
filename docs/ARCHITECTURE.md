@@ -21,8 +21,8 @@
 ┌──────────────────── PC: Mikey for PC (mikey) ────────────────────┐
 │  Listeners: TCP :7653 · UDP beacon :7654 · RFCOMM · AdbWatcher  │
 │  SessionManager   tokens, trust, ask-before-join, session hold   │
-│  Audio pipeline   Opus decode → jitter buf → drift resample     │
-│                   → normalizer → RNNoise → virtual mic          │
+│  Audio pipeline   Opus decode → RNNoise → jitter buf            │
+│                   → drift resample → virtual mic                │
 │  Video pipeline   JPEG decode → scale/letterbox → virtual cam   │
 │  Tray / UI        icon + flyout, notifications, preview window  │
 └──────── Virtual mic (VB-Cable / PipeWire) ───────────────────────┘
