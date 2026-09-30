@@ -61,7 +61,7 @@ Mikey is a distributed, real-time media streaming system consisting of an Androi
 │    │    └── Hard Latency Drop Cap (MAX_LATENCY_MS = 200ms)                                             │
 │    ├── Drift Resampler (resample.rs): Linear interpolation phase accumulator (clamped to ±0.2%)        │
 │    ├── Loudness Normalizer (normalizer.rs): Unity gain speech delivery (1.0×, eliminates ducking/pumping)│
-│    ├── Audio DSP (denoise.rs): RNNoise neural network model + noise gate with strength control        │
+│    ├── Audio DSP (denoise.rs): RNNoise neural network model with dynamic strength control              │
 │    └── Virtual Audio Sink (sink/): WASAPI event-driven shared stream feeding VB-Audio Cable            │
 │                                                                                                        │
 │   Video Pipeline (pc/src/video/):                                                                      │
