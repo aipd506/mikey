@@ -60,7 +60,7 @@ This document tracks Mikey’s five implementation phases, current development s
 - [x] **Android**: Bidirectional control frame sync (`0x04 CONTROL`) for noise suppression and mute.
 - [x] **Android**: Settings disabled/greyed out when PC companion reports missing capabilities.
 - [x] **PC**: RNNoise neural network speech noise reduction (`nnnoiseless`) with strength slider.
-- [x] **PC**: Automatic speech loudness normalizer (-18 dBFS RMS target) and linear drift resampler.
+- [x] **PC**: Adaptive jitter buffer (20 to 120 ms) and smooth drift correction with cubic interpolation.
 - [x] **PC**: Streamlined DSP pipeline (SpeexDSP AEC and noise gate retired in #37 in favor of pure RNNoise neural suppression and adaptive jitter buffering).
 - [x] **PC**: Full bidirectional synchronization of audio and video settings across devices.
 
