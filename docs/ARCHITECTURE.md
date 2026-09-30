@@ -22,7 +22,7 @@
 │  Listeners: TCP :7653 · UDP beacon :7654 · RFCOMM · AdbWatcher  │
 │  SessionManager   tokens, trust, ask-before-join, session hold   │
 │  Audio pipeline   Opus decode → jitter buf → drift resample     │
-│                   → AEC → noise gate → RNNoise → virtual mic    │
+│                   → normalizer → RNNoise → virtual mic          │
 │  Video pipeline   JPEG decode → scale/letterbox → virtual cam   │
 │  Tray / UI        icon + flyout, notifications, preview window  │
 └──────── Virtual mic (VB-Cable / PipeWire) ───────────────────────┘
