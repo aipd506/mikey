@@ -50,7 +50,7 @@ Mikey feels less like software you operate and more like a physical hardware cab
 - Microphone streaming across all four connection levels (L1 USB debugging, L2 USB tethering, L3 Wi-Fi, L4 Bluetooth).
 - Camera streaming on Levels 1, 2, and 3.
 - Front/back lens switching, aspect ratio selection (16:9, 4:3, 1:1 square), and adaptive quality scaling.
-- Audio DSP (RNNoise neural noise reduction, loudness normalizer) executed **exclusively on the PC**; the phone sends raw audio.
+- Audio processing (RNNoise noise suppression, jitter buffer and drift correction) runs **exclusively on the PC**; the phone sends raw audio.
 - Single active streaming device per PC at a time (multiple devices known, one active).
 
 ### 3.2 Explicitly Out of Scope (v1.0)
@@ -99,7 +99,7 @@ If a user begins a meeting over Wi-Fi and connects a USB cable mid-call:
 
 | Risk ID | Description | Impact | Mitigation |
 | :---: | :--- | :---: | :--- |
-| **R1** | Audio latency and sync over Wi-Fi packet jitter | Medium | Supply adaptive delay tracking from `JitterBuffer`; enforce linear drift resampling; rely on RNNoise suppression without fragile loopback AEC. |
+| **R1** | Audio delay and glitches over Wi-Fi packet jitter | Medium | Adaptive `JitterBuffer` with smooth drift correction; echo cancellation is left to the meeting app (Meet, Zoom, Teams). |
 | **R2** | Aggressive OEM battery managers terminate background capture | High | Bind capture to a dedicated Foreground Service with dynamic media types; provide clear instructions for aggressive OEMs (dontkillmyapp.com). |
 | **R3** | Android OS permission and Foreground Service rule churn | Medium | Isolate all FGS logic inside `MikeyService` and `Notifier` behind clean abstraction boundaries. |
 | **R4** | DirectShow softcam not visible in some UWP / Windows Store apps | Medium | Softcam covers major meeting apps (Zoom, Teams, Meet, OBS); support Media Foundation virtual camera on Windows 11 as a phase upgrade. |
@@ -125,7 +125,7 @@ The following 11 architectural decisions govern the Mikey codebase:
 5. **Video Codec**: **MJPEG** for ultra-low latency, zero frame-dependency artifacts, and cross-platform compatibility without licensing entanglements.
 6. **macOS Support**: **Excluded from v1.0** to focus on Windows and Linux stability.
 7. **Local Camera Preview on Phone**: **Disabled** to eliminate GPU power draw and prevent thermal throttling; video is previewed exclusively on the PC.
-8. **Audio DSP Location**: **PC only**. The phone captures and sends raw audio; jitter buffering, drift correction, normalization, and RNNoise denoising execute on PC CPU resources.
+8. **Audio DSP Location**: **PC only**. The phone captures and sends raw audio; RNNoise denoising, jitter buffering and drift correction run on the PC.
 9. **Background Blur/Replacement**: **Excluded**; natively handled with hardware acceleration inside Zoom, Meet, and Teams.
 10. **PC User Interface**: **Custom native Win32 GDI/GDI+ flyout companion**, replacing rigid OS popup menus with an anchored, double-buffered dark card featuring a live VU meter and controls.
 11. **Transport Hierarchy Order**: **Level 1 (ADB) > Level 2 (Tether) > Level 3 (Wi-Fi) > Level 4 (Bluetooth)**. Wi-Fi precedes Bluetooth because it supports high-bandwidth video and lossless audio.
