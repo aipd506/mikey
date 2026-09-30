@@ -59,7 +59,7 @@ Mikey is a distributed, real-time media streaming system consisting of an Androi
 │    ├── JitterBuffer: Adaptive queue depth (USB 20ms, Wi-Fi 40ms, BT 80ms, max 120ms)                  │
 │    │    ├── Exponential Moving Average (EMA) jitter variance tracking                                  │
 │    │    └── Hard Latency Drop Cap (MAX_LATENCY_MS = 200ms)                                             │
-│    ├── Drift Resampler (resample.rs): Linear interpolation phase accumulator (clamped to ±0.2%)        │
+│    ├── Drift Resampler (resample.rs): Cubic interpolation phase accumulator (clamped to ±0.2%)         │
 │    ├── Loudness Normalizer (normalizer.rs): Unity gain speech delivery (1.0×, eliminates ducking/pumping)│
 │    ├── Audio DSP (denoise.rs): RNNoise neural network model with dynamic strength control              │
 │    └── Virtual Audio Sink (sink/): WASAPI event-driven shared stream feeding VB-Audio Cable            │
@@ -163,7 +163,7 @@ Mikey is a distributed, real-time media streaming system consisting of an Androi
        │
 [Client Receiver Thread] (Per Active Connection)
        │  Blocking read_frame() loop with 15s socket timeout
-       │  Parses 0x01 AUDIO -> pushes to JitterBuffer
+       │  Parses 0x01 AUDIO -> RNNoise -> pushes to JitterBuffer
        │  Parses 0x02 VIDEO -> pushes to VideoPipeline latest_jpeg slot
        │  Parses 0x03 HEARTBEAT -> writes echo heartbeat frame
        │  Parses 0x04 CONTROL -> dispatches DSP / mute state updates
@@ -176,7 +176,7 @@ Mikey is a distributed, real-time media streaming system consisting of an Androi
 [Audio Sink Thread] (WASAPI System Thread)
        │  High-priority OS real-time callback
        │  Non-blocking try-lock fetch from JitterBuffer
-       │  Runs Drift Resampler -> Normalizer -> RNNoise -> feeds virtual mic
+       │  Runs Drift Resampler -> feeds virtual mic
 ```
 
 ---
